@@ -44,8 +44,8 @@ subroutine init_poisson_extradof
      allocate(sf_src  (1:ncell    ))
      allocate(sf_grad (1:ncell,1:3))
      if(extradof4) then
-        allocate(cbf     (1:ncell, 1:3))
         allocate(sf_lp    (1:ncell    ))
+        allocate(cbf     (1:ncell, 1:3))
         ! allocate(bf_src1  (1:ncell    ))
         ! allocate(bf_src2  (1:ncell    ))
         ! allocate(bf_src3  (1:ncell    ))
@@ -58,8 +58,8 @@ subroutine init_poisson_extradof
      sf_src=0.0d0
      sf_grad=0.0d0
      if(extradof4) then
-        cbf=0.0d0
         sf_lp=0.0d0
+        cbf=0.0d0
         !bf_src1=0.0d0
         !bf_src2=0.0d0
         !bf_src3=0.0d0

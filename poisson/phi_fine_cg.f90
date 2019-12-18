@@ -534,7 +534,7 @@ subroutine make_initial_extradof(ilevel,icount)
   integer,intent(in) :: ilevel,icount
   integer :: igrid,ncache,i,ngrid,ind,iskip,idim,ibound
   integer ,dimension(1:nvector),save::ind_grid,ind_cell,ind_cell_father
-  real(dp),dimension(1:nvector,1:twotondim),save::sf_int,ps_int,psa_int,psb_int,psc_int
+  real(dp),dimension(1:nvector,1:twotondim),save::sf_int  !,sf_lp_int
 
   if(verbose) print '(A,I2)','entering make_initial_extradof at level ',ilevel
 
@@ -555,25 +555,22 @@ subroutine make_initial_extradof(ilevel,icount)
               ind_cell(i)=iskip+ind_grid(i)
            end do
            do i=1,ngrid
-              sf (ind_cell(i)) = 0.0d0
+              sf(ind_cell(i)) = 0.0d0
+              sf_src(ind_cell(i)) = 0.0d0
               if(extradof4) then
-                 sf_lp (ind_cell(i)) = 0.0d0
-                 bf_src1(ind_cell(i)) = 0.0d0
-                 bf_src2(ind_cell(i)) = 0.0d0
-                 bf_src3(ind_cell(i)) = 0.0d0
-                 bf_src4(ind_cell(i)) = 0.0d0
+                 sf_lp(ind_cell(i)) = 0.0d0
               endif
            end do
            ! f(:,3) stores the masks which is used in the Galileon simulation too; needs to keep
            do idim=1,ndim-1
               do i=1,ngrid
-                 f       (ind_cell(i),idim) = 0.0d0
+                 f(ind_cell(i),idim) = 0.0d0
               end do
            end do
            ! other arrays for gradients initialised to zero
            do idim=1,ndim
               do i=1,ngrid
-                 sf_grad (ind_cell(i),idim) = 0.0d0
+                 sf_grad(ind_cell(i),idim) = 0.0d0
                  if(extradof4) then
                     cbf(ind_cell(i),idim) = 0.0d0
                  endif
@@ -587,7 +584,7 @@ subroutine make_initial_extradof(ilevel,icount)
            ind_cell_father(i)=father(ind_grid(i))
         end do
         
-        call interpol_extradof    (ind_cell_father, sf_int,ngrid,ilevel,icount) ! new or old scheme
+        call interpol_extradof(ind_cell_father, sf_int,ngrid,ilevel,icount) ! new or old scheme
         
         !if(extradof4) then
         !   write(*,*) "B field has no interpol such rountine"
@@ -601,19 +598,16 @@ subroutine make_initial_extradof(ilevel,icount)
               ind_cell(i)=iskip+ind_grid(i)
            end do
            do i=1,ngrid
-              sf (ind_cell(i)) =  sf_int(i,ind)
+              sf(ind_cell(i)) =  sf_int(i,ind)
+              sf_src(ind_cell(i)) = 0.0d0
               if(extradof4) then
-                 sf_lp(ind_cell(i)) = psa_int(i,ind)
-                 bf_src1(ind_cell(i)) = psb_int(i,ind)
-                 bf_src2(ind_cell(i)) = psb_int(i,ind)
-                 bf_src3(ind_cell(i)) = psb_int(i,ind)
-                 bf_src4(ind_cell(i)) = psb_int(i,ind)
+                 sf_lp(ind_cell(i)) = 0.0d0  !sf_lp_int(i,ind)
               endif
            end do
            ! f(:,3) stores the masks which is used in the Galileon simulation too; needs to keep
            do idim=1,ndim-1
               do i=1,ngrid
-                 f       (ind_cell(i),idim) = 0.0d0
+                 f(ind_cell(i),idim) = 0.0d0
               end do
            end do
            ! other arrays for gradients initialised to zero

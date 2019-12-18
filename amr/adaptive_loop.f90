@@ -70,14 +70,19 @@ subroutine adaptive_loop
 #endif
      
      if(extradof2) then
-        ! q-Galileon background (analytical solution on the tracker)
+        ! cv-Galileon background (analytical solution on the tracker)
         EE       = sqrt(0.5d0*(omega_m/aexp**3+sqrt(omega_m**2/aexp**6+4.0d0*(1.0d0-omega_m))))
         Ep       = -0.75d0*omega_m/EE/aexp**3*(1.0d0+omega_m/aexp**3/sqrt(omega_m**2/aexp**6+4.0d0*(1.0d0-omega_m)))
         rc_cvg = EE**2*param_b3**(2d0/3d0)/((2d0*(1d0-omega_m))**(2d0/3d0)) !^2
 
-        alpha_cvg  = 1/(2*2d0**(1d0/3d0))*param_b3**(1d0/3d0)*1d0/(1d0-omega_m)**(1d0/3d0) * (sqrt(omega_m**2/aexp**6 + 4*(1-omega_m)) - omega_m/aexp**3)
+        alpha_cvg  = 1.0d0/(2.0d0*2d0**(1d0/3d0))*param_b3**(1d0/3d0) &
+                   * 1d0/(1d0-omega_m)**(1d0/3d0) &
+                   * (sqrt(omega_m**2/aexp**6 + 4.0d0*(1.0d0-omega_m)) - omega_m/aexp**3)
 
-        beta_cvg   = 1/(2*2d0**(1d0/3d0))*param_b3**(1d0/3d0)*1d0/(1d0-omega_m)**(1d0/3d0) * (5d0*omega_m/aexp**3d0 + 3d0*omega_m**2d0/(aexp**6*sqrt(omega_m**2d0/aexp**6d0 + 4d0*(1-omega_m)))) + param_b3
+        beta_cvg   = 1.0d0/(2.0d0*2d0**(1d0/3d0))*param_b3**(1d0/3d0) &
+                   * 1d0/(1d0-omega_m)**(1d0/3d0) &
+                   * (5d0*omega_m/aexp**3d0 + 3d0*omega_m**2d0/(aexp**6*sqrt(omega_m**2d0/aexp**6d0 + 4d0*(1-omega_m)))) &
+                   + param_b3
 
         write(1234,'(100e15.6)') aexp,rc_cvg,alpha_cvg,beta_cvg
      end if

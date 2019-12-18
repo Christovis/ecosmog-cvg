@@ -1,9 +1,8 @@
 module extradof_parameters
   use amr_parameters
 
-  ! cubic vector Galileon parameters
-  ! TODO tune beta to be similar to DGP (look at python routine)
-  real(dp) :: param_b3=
+  ! free cubic vector Galileon parameter
+  real(dp) :: param_b3=0.01
 
   ! speed of light in standard units
   real(dp) :: sol=299792458.0d0

@@ -1,6 +1,6 @@
-! ------------------------------------------------------------------------
+! ------------------------------------------------------------------------------
 ! Multigrid extradof solver for refined AMR levels
-! ------------------------------------------------------------------------
+! ------------------------------------------------------------------------------
 ! Used variables:
 !                       finest(AMR)level     coarse(MG)levels
 !     -----------------------------------------------------------------
@@ -11,12 +11,12 @@
 !     mask                 f(:,3)         active_mg(myid,ilevel)%u(:,4)
 !     restricted sf         N/A           active_mg(myid,ilevel)%u(:,5)
 !     restricted dens       N/A           active_mg(myid,ilevel)%u(:,6)
-! ------------------------------------------------------------------------
+!     -----------------------------------------------------------------
 
 
-! ------------------------------------------------------------------------
+! ------------------------------------------------------------------------------
 ! Main multigrid routine for the extradof, called by amr_step
-! ------------------------------------------------------------------------
+! ------------------------------------------------------------------------------
 subroutine multigrid_fine_extradof(ilevel,icount,isf)
 
    use amr_commons
@@ -52,27 +52,28 @@ subroutine multigrid_fine_extradof(ilevel,icount,isf)
    if(verbose) print '(A,I2)','V-cycle: entering fine multigrid at level ',ilevel
 
    if(.not.(extradof4).and.(isf > 1)) then
-      write(*,*) "extradof4 is not set to true"
+      write(*,*) "In multigrid_fine_extradof: isf can't be larger than 1 if extradof4 is False"
       call clean_stop
    endif
 
 
-   residual_old   = 1.0d0
+   residual_old = 1.0d0
    ! ---------------------------------------------------------------------
    ! Prepare first guess, mask and BCs at finest level
    ! ---------------------------------------------------------------------
    if(ilevel>levelmin)then
-      ! if on the domain level, initialise ps and sf to previous step values;
+      ! if on the domain level, initialise sf and sf_lp to previous step values;
       !   (1) this is automatically done without calling any subroutines.
       ! if on refinements, initialise by interpolation from coarser level:
-      !   (1) for ps (sf_lp), real interpolation using old scheme;
+      !   (1) for sf_lp, real interpolation using old scheme;
       !   (2) for sf, real interpolation using new or old scheme (-DOLDINTERP);
       call make_initial_extradof(ilevel,icount)
    else
       ! If on domain grid, do nothing because we can use the result of last
       ! step as the initial guess of the current step
    endif
-   ! communicate the Galileon-related arrays on virtual boundaries
+
+   ! communicate the cv-Galileon related arrays on virtual boundaries
    call make_virtual_fine_dp(sf(1),ilevel)
    if(extradof4) then
       call make_virtual_fine_dp(sf_lp(1),ilevel)
@@ -80,44 +81,47 @@ subroutine multigrid_fine_extradof(ilevel,icount,isf)
          call make_virtual_fine_dp(cbf(1,idim),ilevel)
       enddo
    endif
- 
-!  call make_fine_bc_rhs_extradof(ilevel)
- 
+
+   ! call make_fine_bc_rhs_extradof(ilevel)
+
    ! ---------------------------------------------------------------------
    ! Restrict relevant quantities up
    ! ---------------------------------------------------------------------
    if(ilevel>1) then
       ! The restricted density field
       call restrict_density_fine_reverse_extradof(ilevel)
-      call make_reverse_mg_dp(6,ilevel-1) 
-      call make_virtual_mg_dp(6,ilevel-1) 
- 
+      call make_reverse_mg_dp(6,ilevel-1)
+      call make_virtual_mg_dp(6,ilevel-1)
+
       ! Restrict relevant quantities up for coarser levels
       do ifine=(ilevel-1),levelmin_mg,-1
          ! The restricted density field
          call restrict_density_coarse_reverse_extradof(ifine)
-         call make_reverse_mg_dp(6,ifine-1) 
-         call make_virtual_mg_dp(6,ifine-1) 
+         call make_reverse_mg_dp(6,ifine-1)
+         call make_virtual_mg_dp(6,ifine-1)
       end do
    end if
 
-   ! Good routine for debugging 
-   !dx  = 0.5d0**ilevel
-   !do ind=1,twotondim
-   !   do igrid_mg=1,active(ilevel)%ngrid
-   !      igrid_amr = active(ilevel)%igrid(igrid_mg)     ! Grid amr index
-   !      icell_amr = ncoarse+(ind-1)*ngridmax+igrid_amr ! Cell amr index
-   !      iz = (ind-1)/4
-   !      iy = (ind-1-4*iz)/2
-   !      ix = (ind-1-4*iz-2*iy)
-   !      xx = (dble(ix)-0.5d0)*dx+xg(igrid_amr,1)
-   !      yy = (dble(iy)-0.5d0)*dx+xg(igrid_amr,2)
-   !      zz = (dble(iz)-0.5d0)*dx+xg(igrid_amr,3)
-   !      if(yy-0.5d0<0.002 .and. yy>0.5d0 .and. zz-0.5d0<0.002 .and. zz>0.5d0 .and. xx-0.5d0<0.002 .and. xx>0.5d0 .and. ilevel==levelmin) then
-   !         write(*,*) 'last step:','test ps = ',ps(icell_amr),'test sf = ',sf(icell_amr)
-   !      end if
-   !   end do
-   !end do
+   if(verbose) then
+      dx  = 0.5d0**ilevel
+      do ind=1,twotondim
+          do igrid_mg=1,active(ilevel)%ngrid
+             igrid_amr = active(ilevel)%igrid(igrid_mg)     ! Grid amr index
+             icell_amr = ncoarse+(ind-1)*ngridmax+igrid_amr ! Cell amr index
+             iz = (ind-1)/4
+             iy = (ind-1-4*iz)/2
+             ix = (ind-1-4*iz-2*iy)
+             xx = (dble(ix)-0.5d0)*dx+xg(igrid_amr,1)
+             yy = (dble(iy)-0.5d0)*dx+xg(igrid_amr,2)
+             zz = (dble(iz)-0.5d0)*dx+xg(igrid_amr,3)
+             if(yy-0.5d0<0.002 .and. yy>0.5d0 .and. zz-0.5d0<0.002 .and. &
+                zz>0.5d0 .and. xx-0.5d0<0.002 .and. xx>0.5d0 .and. &
+                ilevel==levelmin) then
+                write(*,*) 'last step:','test ps = ',ps(icell_amr),'test sf = ',sf(icell_amr)
+             end if
+          end do
+       end do
+    endif
 
    ! ---------------------------------------------------------------------
    ! Initiate solve at fine level
@@ -129,14 +133,13 @@ subroutine multigrid_fine_extradof(ilevel,icount,isf)
       iter=iter+1
       ! Pre-smoothing
       do i=1,ngs_fine_extradof_pre
-         ! TODO remember to mpdify gauss_seidel
          call gauss_seidel_mg_fine_extradof(ilevel,isf,.true.)
          if(isf.eq.1) then
             call make_virtual_fine_dp(sf(1),ilevel)
             call make_virtual_fine_dp(sf_src(1),ilevel)
             call gauss_seidel_sf_src_mean_extradof(ilevel)
          else
-            call make_virtual_fine_dp(cbf(isf-1),ilevel)
+            call make_virtual_fine_dp(cbf(1,isf-1),ilevel)
          endif
          call gauss_seidel_mg_fine_extradof(ilevel,isf,.false.)
          if(isf.eq.1) then
@@ -144,7 +147,7 @@ subroutine multigrid_fine_extradof(ilevel,icount,isf)
             call make_virtual_fine_dp(sf_src(1),ilevel)
             call gauss_seidel_sf_src_mean_extradof(ilevel)
          else
-            call make_virtual_fine_dp(cbf(isf-1),ilevel)
+            call make_virtual_fine_dp(cbf(1,isf-1),ilevel)
          endif
       end do
 
@@ -183,7 +186,7 @@ subroutine multigrid_fine_extradof(ilevel,icount,isf)
          if(isf.eq.1) then
             call make_virtual_fine_dp(sf(1),ilevel)
          else
-            call make_virtual_fine_dp(cbf(isf-1),ilevel)
+            call make_virtual_fine_dp(cbf(1,isf-1),ilevel)
          endif
       end if
 
@@ -195,7 +198,7 @@ subroutine multigrid_fine_extradof(ilevel,icount,isf)
             call make_virtual_fine_dp(sf_src(1),ilevel)
             call gauss_seidel_sf_src_mean_extradof(ilevel)
          else
-            call make_virtual_fine_dp(cbf(isf-1),ilevel)
+            call make_virtual_fine_dp(cbf(1,isf-1),ilevel)
          endif
          call gauss_seidel_mg_fine_extradof(ilevel,isf,.false.)
          if(isf.eq.1) then
@@ -203,7 +206,7 @@ subroutine multigrid_fine_extradof(ilevel,icount,isf)
             call make_virtual_fine_dp(sf_src(1),ilevel)
             call gauss_seidel_sf_src_mean_extradof(ilevel)
          else
-            call make_virtual_fine_dp(cbf(isf-1),ilevel)
+            call make_virtual_fine_dp(cbf(1,isf-1),ilevel)
          endif
       end do
 
@@ -234,9 +237,14 @@ subroutine multigrid_fine_extradof(ilevel,icount,isf)
       ! Converged?
       ! start of TODO: think about different convergence criteria for sf and cbf
       if(ilevel==levelmin) then
-         if(residual<1.0d-8  .or. iter>=MAXITER .or. abs(residual-residual_old)<1.0d-9  .or. (residual<=0.33*trunc_err .and. iter>=20) .or. (residual>residual_old) .or. aexp>0.38) exit
+         if(residual<1.0d-8 .or. iter>=MAXITER .or. &
+            abs(residual-residual_old)<1.0d-9  .or. &
+            (residual<=0.33*trunc_err .and. iter>=20) .or. &
+            (residual>residual_old) .or. aexp>0.38) exit
       else
-         if(residual<1.0d-8  .or. iter>=MAXITER .or. abs(residual-residual_old)<1.0d-9  .or. (residual<=0.33*trunc_err .and. iter>=20)) exit
+         if(residual<1.0d-8 .or. iter>=MAXITER .or. &
+            abs(residual-residual_old)<1.0d-9  .or. &
+            (residual<=0.33*trunc_err .and. iter>=20)) exit
       end if
 
       if(residual<=residual_old) then
@@ -264,23 +272,26 @@ subroutine multigrid_fine_extradof(ilevel,icount,isf)
 
    if(myid==1 .and. iter==MAXITER) print *,'Warning: Fine multigrid extradof eqn fails to converge.'
    if(residual>1.0d-5 .and. residual>0.25*trunc_err) print *,'Warning2: Fine multigrid extradof eqn fails to converge.'
-  
-   ! Good routine for debugging 
-   !do ind=1,twotondim
-   !   do igrid_mg=1,active(ilevel)%ngrid
-   !      igrid_amr = active(ilevel)%igrid(igrid_mg)     ! Grid amr index
-   !      icell_amr = ncoarse+(ind-1)*ngridmax+igrid_amr ! Cell amr index
-   !      iz = (ind-1)/4
-   !      iy = (ind-1-4*iz)/2
-   !      ix = (ind-1-4*iz-2*iy)
-   !      xx = (dble(ix)-0.5d0)*dx+xg(igrid_amr,1)
-   !      yy = (dble(iy)-0.5d0)*dx+xg(igrid_amr,2)
-   !      zz = (dble(iz)-0.5d0)*dx+xg(igrid_amr,3)
-   !      if(yy-0.5d0<0.002 .and. yy>0.5d0 .and. zz-0.5d0<0.002 .and. zz>0.5d0 .and. xx-0.5d0<0.002 .and. xx>0.5d0 .and. ilevel==levelmin) then
-   !         write(*,*) 'this step:','test ps = ',ps(icell_amr),'test sf = ',sf(icell_amr)
-   !      end if
-   !   end do
-   !end do
+
+   if(verbose) then
+      do ind=1,twotondim
+         do igrid_mg=1,active(ilevel)%ngrid
+            igrid_amr = active(ilevel)%igrid(igrid_mg)     ! Grid amr index
+            icell_amr = ncoarse+(ind-1)*ngridmax+igrid_amr ! Cell amr index
+            iz = (ind-1)/4
+            iy = (ind-1-4*iz)/2
+            ix = (ind-1-4*iz-2*iy)
+            xx = (dble(ix)-0.5d0)*dx+xg(igrid_amr,1)
+            yy = (dble(iy)-0.5d0)*dx+xg(igrid_amr,2)
+            zz = (dble(iz)-0.5d0)*dx+xg(igrid_amr,3)
+            if(yy-0.5d0<0.002 .and. yy>0.5d0 .and. zz-0.5d0<0.002 .and. &
+               zz>0.5d0 .and. xx-0.5d0<0.002 .and. xx>0.5d0 .and. &
+               ilevel==levelmin) then
+               write(*,*) 'this step:','test ps = ',ps(icell_amr),'test sf = ',sf(icell_amr)
+            end if
+         end do
+      end do
+   endif
 
    ! ---------------------------------------------------------------------
    ! Cleanup MG levels after solve complete
@@ -297,9 +308,9 @@ end subroutine multigrid_fine_extradof
 ! ########################################################################
 ! ########################################################################
 
-! ------------------------------------------------------------------------
+! ------------------------------------------------------------------------------
 ! Recursive multigrid routine for coarse MG levels
-! ------------------------------------------------------------------------
+! ------------------------------------------------------------------------------
 recursive subroutine recursive_multigrid_coarse_extradof(ifinelevel,safe)
 
    use amr_commons
@@ -318,7 +329,7 @@ recursive subroutine recursive_multigrid_coarse_extradof(ifinelevel,safe)
 
    integer :: i,icpu,info,icycle,ncycle
    integer :: ind,igrid,icell_mg
- 
+
    if(verbose) then
       if(ifinelevel>levelmin_mg) then
          print '(A,I2)','V-cycle: entering coarse multigrid at level ',ifinelevel
@@ -405,7 +416,7 @@ end subroutine recursive_multigrid_coarse_extradof
 ! ########################################################################
 ! ########################################################################
 
-! ------------------------------------------------------------------------
+! ------------------------------------------------------------------------------
 ! Preprocess the fine (AMR) level vars to account for boundary conditions
 ! for the extradof solver
 !
@@ -417,8 +428,8 @@ end subroutine recursive_multigrid_coarse_extradof
 ! Sets BC-modified RHS for the extradof solver into f(:,2), this is simply
 ! zero due to the form of the extradof equation (see paper)
 !
-! This subroutine is essentially useless                                 
-! ------------------------------------------------------------------------
+! This subroutine is essentially useless
+! ------------------------------------------------------------------------------
 subroutine make_fine_bc_rhs_extradof(ilevel)
 
    use amr_commons
@@ -477,44 +488,6 @@ subroutine make_fine_bc_rhs_extradof(ilevel)
 
          f(icell_amr,2) = 0.0d0
          if(f(icell_amr,3)<=0.0) cycle ! Do not process masked cells
-
-         ! Separate directions 
-!        do idim=1,ndim
-!           ! Loop over the 2 neighbors
-!           do inbor=1,2
-!              ! Get neighbor grid shift
-!              igshift = iii(idim,inbor,ind)
-! 
-!              ! Get neighbor grid and its parent cell
-!              if(igshift==0) then
-!                 igrid_nbor_amr = igrid_amr
-!                 ifathercell_nbor_amr = father(igrid_nbor_amr)
-!              else
-!                 igrid_nbor_amr = son(nbor(igrid_amr,igshift))
-!                 ifathercell_nbor_amr = nbor(igrid_amr,igshift)
-!              end if
-!
-!              if(igrid_nbor_amr==0) then
-!                 ! No neighbor: set mask to -1 and interpolate sf
-!                 nb_mask = -1.0d0
-!
-!                 ! Interpolate from upper level
-!                 ind_cell(1)=ifathercell_nbor_amr
-!                 call interpol_extradof(ind_cell,sf_int,1,ilevel)
-!                 nb_sf = sf_int(1,jjj(idim,inbor,ind))
-!              else
-!                 ! Fetch neighbor cell id
-!                 icell_nbor_amr = igrid_nbor_amr + (ncoarse + (jjj(idim,inbor,ind)-1)*ngridmax)
-!                 ! Check neighbor cell mask
-!                 nb_mask = f(icell_nbor_amr,3)
-!                 if(nb_mask>0) cycle ! Neighbor cell is active too: cycle
-!                 nb_sf  = sf(icell_nbor_amr)
-!              end if
-!              ! sf(#) and b(#) interpolated with mask:
-!              w = nb_mask/(nb_mask-f(icell_amr,3)) ! Linear parameter
-!              sf_b = ((1.0d0-w)*nb_sf+w*sf(icell_amr))
-!           end do
-!        end do
       end do
    end do
 
@@ -525,9 +498,9 @@ end subroutine make_fine_bc_rhs_extradof
 ! ########################################################################
 ! ########################################################################
 
-! ------------------------------------------------------------------------
+! ------------------------------------------------------------------------------
 ! Multigrid level cleanup
-! ------------------------------------------------------------------------
+! ------------------------------------------------------------------------------
 subroutine cleanup_mg_level(ilevel)
 
    use amr_commons
@@ -579,9 +552,9 @@ end subroutine cleanup_mg_level
 ! ########################################################################
 ! ########################################################################
 
-! ------------------------------------------------------------------------
+! ------------------------------------------------------------------------------
 ! Multigrid level restoration for the Poisson equation solver next
-! ------------------------------------------------------------------------
+! ------------------------------------------------------------------------------
 subroutine restore_mg_level_extradof(ilevel)
    use amr_commons
    use pm_commons
@@ -641,7 +614,9 @@ subroutine restore_amr_level_extradof(ilevel)
 
 end subroutine restore_amr_level_extradof
 
-
+! ------------------------------------------------------------------------------
+! Computate mean value of sf_src
+! ------------------------------------------------------------------------------
 subroutine gauss_seidel_sf_src_mean_extradof(ilevel)
    use amr_commons
    use pm_commons
@@ -678,7 +653,7 @@ subroutine gauss_seidel_sf_src_mean_extradof(ilevel)
 
    test_srcbar=test_srcbar/dble((2**levelmin)**3)
 
-   ! if(verbose) write(*,*) 'The average srouce is',test_srcbar
+   if(verbose) write(*,*) 'The average srouce is',test_srcbar
 
    sf_src_mean = test_srcbar
 

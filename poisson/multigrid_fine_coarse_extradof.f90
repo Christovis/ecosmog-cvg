@@ -1,7 +1,11 @@
-! ------------------------------------------------------------------------
+! ------------------------------------------------------------------------------
 ! Multigrid Poisson solver for refined AMR levels
-! ------------------------------------------------------------------------
-! This file contains all MG-coarse-level related routines
+! ------------------------------------------------------------------------------
+! This file contains all MG-coarse-level related routines.
+!
+! Note: We use interpolation from fine_fine-level onto coarse-level.
+! Therefore we don't have to differentiate between the vector-components
+! of the Proca field. (Meaning we can neglect isf)
 !
 ! Used variables:
 !                       finest(AMR)level     coarse(MG)levels
@@ -13,15 +17,16 @@
 !     mask                 f(:,3)         active_mg(myid,ilevel)%u(:,4)
 !     restricted sf         N/A           active_mg(myid,ilevel)%u(:,5)
 !     restricted dens       N/A           active_mg(myid,ilevel)%u(:,6)
-! ------------------------------------------------------------------------
+!     -----------------------------------------------------------------
 
-! ------------------------------------------------------------------------
+! ------------------------------------------------------------------------------
 ! Compute residual, and stores it into active_mg(myid,ilevel)%u(:,3)
-! ------------------------------------------------------------------------
-! TODO later
-
+! ------------------------------------------------------------------------------
 subroutine cmp_residual_mg_coarse_extradof(ilevel)
- 
+   ! On the coardse level we simplify by using interpolating amr-levels.
+   ! Therefore this subroutine does not need to differentiate between the
+   ! vector-components. (Meaning we can neglect isf)
+
    use amr_commons
    use poisson_commons
    use extradof_commons
@@ -33,7 +38,7 @@ subroutine cmp_residual_mg_coarse_extradof(ilevel)
 
    real(dp) :: dx2
    integer  :: ngrid
-   integer  :: ind,igrid_mg,iskip_mg,iskip_amr 
+   integer  :: ind,igrid_mg,iskip_mg,iskip_amr
    real(dp) :: dtwondim = (twondim)
 
    real(dp) :: eta,sfc,op
@@ -67,21 +72,21 @@ subroutine cmp_residual_mg_coarse_extradof(ilevel)
                   ind2            = (nbors_cells(i,j)-ncoarse)/ngridmax+1
                   jgrid_amr(j)    = nbors_cells(i,j)-ncoarse-(ind2-1)*ngridmax
                   jgrid_mg(j)     = lookup_mg(jgrid_amr(j))
-                  cpu_nbor_amr(j) = cpu_map(father(jgrid_amr(j))) 
+                  cpu_nbor_amr(j) = cpu_map(father(jgrid_amr(j)))
                   jcell_mg(j)     = jgrid_mg(j)+(ind2-1)*active_mg(cpu_nbor_amr(j),ilevel)%ngrid
                end do
                do j=11,17,2
                   ind2            = (nbors_cells(i,j)-ncoarse)/ngridmax+1
                   jgrid_amr(j)    = nbors_cells(i,j)-ncoarse-(ind2-1)*ngridmax
                   jgrid_mg(j)     = lookup_mg(jgrid_amr(j))
-                  cpu_nbor_amr(j) = cpu_map(father(jgrid_amr(j)))   
+                  cpu_nbor_amr(j) = cpu_map(father(jgrid_amr(j)))
                   jcell_mg(j)     = jgrid_mg(j)+(ind2-1)*active_mg(cpu_nbor_amr(j),ilevel)%ngrid
                end do
                do j=5,23,18
                   ind2            = (nbors_cells(i,j)-ncoarse)/ngridmax+1
                   jgrid_amr(j)    = nbors_cells(i,j)-ncoarse-(ind2-1)*ngridmax
                   jgrid_mg(j)     = lookup_mg(jgrid_amr(j))
-                  cpu_nbor_amr(j) = cpu_map(father(jgrid_amr(j)))   
+                  cpu_nbor_amr(j) = cpu_map(father(jgrid_amr(j)))
                   jcell_mg(j)     = jgrid_mg(j)+(ind2-1)*active_mg(cpu_nbor_amr(j),ilevel)%ngrid
                end do
 
@@ -92,9 +97,10 @@ subroutine cmp_residual_mg_coarse_extradof(ilevel)
                nb_sum_sfi(3) = active_mg(cpu_nbor_amr(5 ),ilevel)%u(jcell_mg(5 ),1) + &
                              & active_mg(cpu_nbor_amr(23),ilevel)%u(jcell_mg(23),1)
 
+               ! op = lhs - rhs of scalar field Poission (Eq. 59)
                op  = nb_sum_sfi(1)+nb_sum_sfi(2)+nb_sum_sfi(3)-6.0d0*sfc &
                  - active_mg(myid,ilevel)%u(icell_mg(i),6)*dx2 &
-                 - active_mg(myid,ilevel)%u(icell_mg(i),2)*dx2 
+                 - active_mg(myid,ilevel)%u(icell_mg(i),2)*dx2
 
             else
                op = 0.0d0
@@ -150,7 +156,7 @@ subroutine cmp_fvar_norm2_coarse_extradof(ivar,ilevel,norm2)
    use poisson_commons
    use extradof_commons
    use extradof_parameters
-   
+
    implicit none
 
    integer,  intent(in)  :: ilevel,ivar
@@ -178,11 +184,13 @@ subroutine cmp_fvar_norm2_coarse_extradof(ivar,ilevel,norm2)
    norm2 = dx2*norm2
 end subroutine cmp_fvar_norm2_coarse_extradof
 
-! ------------------------------------------------------------------------
+! ------------------------------------------------------------------------------
 ! Gauss-Seidel smoothing
-! ------------------------------------------------------------------------
-
+! ------------------------------------------------------------------------------
 subroutine gauss_seidel_mg_coarse_extradof(ilevel,safe,redstep)
+   ! On the coardse level we simplify by using interpolating amr-levels.
+   ! Therefore this subroutine does not need to differentiate between the
+   ! vector-components. (Meaning we can neglect isf)
 
    use amr_commons
    use pm_commons
@@ -234,7 +242,7 @@ subroutine gauss_seidel_mg_coarse_extradof(ilevel,safe,redstep)
 
       iskip_mg  = (ind-1)*ngrid
       iskip_amr = ncoarse+(ind-1)*ngridmax
-     
+
       do igrid_mg=1,ngrid,nvector
          nbatch=MIN(nvector,ngrid-igrid_mg+1)
          do i=1,nbatch
@@ -272,15 +280,15 @@ subroutine gauss_seidel_mg_coarse_extradof(ilevel,safe,redstep)
                   jcell_mg(j)     = jgrid_mg(j)+(ind2-1)*active_mg(cpu_nbor_amr(j),ilevel)%ngrid
                end do
                nb_sum_sfi(1) = active_mg(cpu_nbor_amr(13),ilevel)%u(jcell_mg(13),1) + &
-                             & active_mg(cpu_nbor_amr(15),ilevel)%u(jcell_mg(15),1) 
+                             & active_mg(cpu_nbor_amr(15),ilevel)%u(jcell_mg(15),1)
                nb_sum_sfi(2) = active_mg(cpu_nbor_amr(11),ilevel)%u(jcell_mg(11),1) + &
-                             & active_mg(cpu_nbor_amr(17),ilevel)%u(jcell_mg(17),1) 
+                             & active_mg(cpu_nbor_amr(17),ilevel)%u(jcell_mg(17),1)
                nb_sum_sfi(3) = active_mg(cpu_nbor_amr(5 ),ilevel)%u(jcell_mg(5 ),1) + &
-                             & active_mg(cpu_nbor_amr(23),ilevel)%u(jcell_mg(23),1) 
+                             & active_mg(cpu_nbor_amr(23),ilevel)%u(jcell_mg(23),1)
 
                op  = nb_sum_sfi(1)+nb_sum_sfi(2)+nb_sum_sfi(3)-6.0d0*sfc &
                  - active_mg(myid,ilevel)%u(icell_mg(i),6)*dx2 &
-                 - active_mg(myid,ilevel)%u(icell_mg(i),2)*dx2 
+                 - active_mg(myid,ilevel)%u(icell_mg(i),2)*dx2
                dop = -6.0d0
 
                active_mg(myid,ilevel)%u(icell_mg(i),1) = active_mg(myid,ilevel)%u(icell_mg(i),1)-op/dop
@@ -291,12 +299,11 @@ subroutine gauss_seidel_mg_coarse_extradof(ilevel,safe,redstep)
 
 end subroutine gauss_seidel_mg_coarse_extradof
 
-! ------------------------------------------------------------------------
+! ------------------------------------------------------------------------------
 ! Compute the physical rhs of the coarse level, including the corrections
 ! from the finer level, such as the residual etc.
-! The physical rhs is stored in active_mg(myid,ilevel)%u(:,2) 
-! ------------------------------------------------------------------------
-
+! The physical rhs is stored in active_mg(myid,ilevel)%u(:,2)
+! ------------------------------------------------------------------------------
 subroutine make_physical_rhs_coarse_extradof(ilevel)
 
    use amr_commons
@@ -304,11 +311,11 @@ subroutine make_physical_rhs_coarse_extradof(ilevel)
    use poisson_commons
    use extradof_commons
    use extradof_parameters
-   
+
    implicit none
 
    integer, intent(in) :: ilevel
-   
+
    real(dp) :: dx2
    integer  :: ngrid
    integer  :: ind,igrid_mg
@@ -317,10 +324,10 @@ subroutine make_physical_rhs_coarse_extradof(ilevel)
 
    real(dp) :: sfc,op
    real(dp), dimension(1:3) :: nb_sum_sfi,nb_sum_sfj
-   integer,  dimension(1:nvector), save               :: igrid_amr,icell_amr,icell_mg 
+   integer,  dimension(1:nvector), save               :: igrid_amr,icell_amr,icell_mg
    integer,  dimension(1:nvector,1:threetondim), save :: nbors_cells
    integer,  dimension(1:nvector,1:twotondim), save   :: nbors_grids
-   integer  :: nbatch,i,j,ind2 
+   integer  :: nbatch,i,j,ind2
    integer,  dimension(1:threetondim) :: jgrid_amr,jgrid_mg,jcell_mg,cpu_nbor_amr
 
    ! Set constants
@@ -375,24 +382,23 @@ subroutine make_physical_rhs_coarse_extradof(ilevel)
                              & active_mg(cpu_nbor_amr(23),ilevel)%u(jcell_mg(23),5)
 
 
-               op  = nb_sum_sfi(1)+nb_sum_sfi(2)+nb_sum_sfi(3)-6.0d0*sfc & 
+               op  = nb_sum_sfi(1)+nb_sum_sfi(2)+nb_sum_sfi(3)-6.0d0*sfc &
                  - active_mg(myid,ilevel)%u(icell_mg(i),6)*dx2
 
             else
                op = 0.0d0
             end if
 
-            active_mg(myid,ilevel)%u(icell_mg(i),2) = active_mg(myid,ilevel)%u(icell_mg(i),2)+op/dx2 
+            active_mg(myid,ilevel)%u(icell_mg(i),2) = active_mg(myid,ilevel)%u(icell_mg(i),2)+op/dx2
          end do
       end do
    end do
 end subroutine make_physical_rhs_coarse_extradof
 
 
-! ------------------------------------------------------------------------
+! ------------------------------------------------------------------------------
 ! Residual restriction (bottom-up)
-! ------------------------------------------------------------------------
-
+! ------------------------------------------------------------------------------
 subroutine restrict_residual_coarse_reverse_extradof(ifinelevel)
    use amr_commons
    use poisson_commons
@@ -403,7 +409,7 @@ subroutine restrict_residual_coarse_reverse_extradof(ifinelevel)
 
    integer, intent(in) :: ifinelevel
 
-   integer :: ind_c_cell,ind_f_cell,cpu_amr   
+   integer :: ind_c_cell,ind_f_cell,cpu_amr
    integer :: iskip_c_mg
    integer :: igrid_c_amr,igrid_c_mg
    integer :: icell_c_amr,icell_c_mg
@@ -452,10 +458,9 @@ subroutine restrict_residual_coarse_reverse_extradof(ifinelevel)
 
 end subroutine restrict_residual_coarse_reverse_extradof
 
-! ------------------------------------------------------------------------
+! ------------------------------------------------------------------------------
 ! Restriction of the extradof to be used in the FAS (bottom-up)
-! ------------------------------------------------------------------------
-
+! ------------------------------------------------------------------------------
 subroutine restrict_extradof_coarse_reverse_extradof(ifinelevel)
    use amr_commons
    use poisson_commons
@@ -466,7 +471,7 @@ subroutine restrict_extradof_coarse_reverse_extradof(ifinelevel)
    integer, intent(in) :: ifinelevel
 
    integer :: ind_c_cell, ind_f_cell, cpu_amr
-   
+
    integer :: iskip_c_mg
    integer :: igrid_c_amr, igrid_c_mg
    integer :: icell_c_amr, icell_c_mg
@@ -511,11 +516,11 @@ subroutine restrict_extradof_coarse_reverse_extradof(ifinelevel)
          igrid_f_amr=active_mg(myid,ifinelevel)%igrid(igrid_f_mg)          ! amr fine grid index
          icell_c_amr=father(igrid_f_amr)                                   ! amr coarse cell index
 !        ind_c_cell=(icell_c_amr-ncoarse-1)/ngridmax+1                     ! amr coarse cell position
-         ind_c_cell=(icell_c_amr-ncoarse)/ngridmax+1                       ! amr coarse cell position 
+         ind_c_cell=(icell_c_amr-ncoarse)/ngridmax+1                       ! amr coarse cell position
          igrid_c_amr=icell_c_amr-ncoarse-(ind_c_cell-1)*ngridmax           ! amr coarse grid index
          cpu_amr=cpu_map(father(igrid_c_amr))                              ! coarse cell cpu index
 
-         ! Convert to MG index, get MG coarse cell id 
+         ! Convert to MG index, get MG coarse cell id
          igrid_c_mg=lookup_mg(igrid_c_amr)                                 ! mg coarse grid index
          iskip_c_mg=(ind_c_cell-1)*active_mg(cpu_amr,icoarselevel)%ngrid
          icell_c_mg=iskip_c_mg+igrid_c_mg                                  ! mg coarse cell index
@@ -523,7 +528,7 @@ subroutine restrict_extradof_coarse_reverse_extradof(ifinelevel)
          ! If coarse cell is masked, it is boundary and R\tilde{u} is not needed
          if(active_mg(cpu_amr,icoarselevel)%u(icell_c_mg,4)<=0d0.or.n_masked(igrid_f_mg)==8) cycle
 
-         ! Restriction to compute the sf value in the coarse cell 
+         ! Restriction to compute the sf value in the coarse cell
          sf1=active_mg(myid,ifinelevel)%u(icell_f_mg,1)/(dtwotondim-dble(n_masked(igrid_f_mg)))
          active_mg(cpu_amr,icoarselevel)%u(icell_c_mg,5)=&
             active_mg(cpu_amr,icoarselevel)%u(icell_c_mg,5)+sf1
@@ -544,7 +549,7 @@ subroutine restrict_density_coarse_reverse_extradof(ifinelevel)
    integer, intent(in) :: ifinelevel
 
    integer :: ind_c_cell, ind_f_cell, cpu_amr
-   
+
    integer :: iskip_c_mg
    integer :: igrid_c_amr, igrid_c_mg
    integer :: icell_c_amr, icell_c_mg
@@ -603,7 +608,7 @@ subroutine restrict_density_coarse_reverse_extradof(ifinelevel)
          ! If coarse cell is masked, it's outside boundary and R\rho is not needed
          if(active_mg(cpu_amr,icoarselevel)%u(icell_c_mg,4)<=0d0.or.n_masked(igrid_f_mg)==8) cycle
 
-         ! Restriction to compute the sf value in the coarse cell 
+         ! Restriction to compute the sf value in the coarse cell
          rho1=active_mg(myid,ifinelevel)%u(icell_f_mg,6)/(dtwotondim-dble(n_masked(igrid_f_mg)))
          active_mg(cpu_amr,icoarselevel)%u(icell_c_mg,6)=&
             active_mg(cpu_amr,icoarselevel)%u(icell_c_mg,6)+rho1
@@ -614,10 +619,9 @@ subroutine restrict_density_coarse_reverse_extradof(ifinelevel)
 
 end subroutine restrict_density_coarse_reverse_extradof
 
-! ------------------------------------------------------------------------
+! ------------------------------------------------------------------------------
 ! Interpolation (prolongation) and correction
-! ------------------------------------------------------------------------
-
+! ------------------------------------------------------------------------------
 subroutine interpolate_and_correct_coarse_extradof(ifinelevel)
    use amr_commons
    use poisson_commons
@@ -725,7 +729,7 @@ subroutine interpolate_and_correct_coarse_extradof(ifinelevel)
       ! End loop over cells
 
    end do
-   
+
    if(verbose) print '(A,I2)','corrected at level ',ifinelevel
 
 end subroutine interpolate_and_correct_coarse_extradof

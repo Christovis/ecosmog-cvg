@@ -1052,8 +1052,7 @@ subroutine kill_grid(ind_cell,ilevel,nn,ibound,boundary_region)
      ! extradof variables
      if(extradof) then
         if(extradof4) then
-            write(*,*) "This version does not support the calculation atm.
-            9/12/19"
+            write(*,*) "amr/refine_utils.f90: This version does not support the calculation atm."
             call clean_stop
         end if
         do i=1,nn
