@@ -24,7 +24,7 @@ recursive subroutine amr_step(ilevel,icount)
   ! Each routine is called using a specific order, don't change it,   !
   ! unless you check all consequences first                           !
   !-------------------------------------------------------------------!
-  
+
   integer::i,idim,ivar
   logical::ok_defrag,output_now_all
   logical,save::first_step=.true.
@@ -46,7 +46,7 @@ recursive subroutine amr_step(ilevel,icount)
 
   ctilde = sol/boxlen_ini/100000.0d0    !GR_test
   twoac2 = 2.0d0*(aexp*ctilde)**2       !GR_test
-  aomega = aexp*omega_m 
+  aomega = aexp*omega_m
 
   ! Specific ordering of gr_pots for synchro and move steps
   gr_ord1(1:5)=(/9,8,7,5,6   /) ! Smallest to largest (sync)
@@ -104,7 +104,7 @@ recursive subroutine amr_step(ilevel,icount)
                  end do
                  if(simple_boundary)call make_boundary_force(i)
               end if
-             
+
               if(gr)then
                  do igrp=1,10
                     call make_virtual_fine_dp(gr_pot(1,igrp),i)
@@ -234,10 +234,10 @@ recursive subroutine amr_step(ilevel,icount)
      !save old potential for time-extrapolation at level boundaries
      call save_phi_old(ilevel)
                                call timer('rho','start')
-     if(gr) gr2=.true.                          
-     if(gr.and.gr_newtonian) gr2=.false.                          
+     if(gr) gr2=.true.
+     if(gr.and.gr_newtonian) gr2=.false.
      call rho_fine(ilevel,icount)
- 
+
      ! Newtonian synchro
      if(gr.and.gr_newtonian)then
         ! Compute gravitational potential
@@ -324,16 +324,13 @@ recursive subroutine amr_step(ilevel,icount)
            else call synchro_fine(ilevel)
            end if
         end if
-     else
-!       do igr=1,10
-!          call multigrid_fine_gr(ilevel,icount,igr)
-!       end do
-        
+
+     else  ! if gr
      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
      !!!!!!!!!!!!!!!!!!!! GR Test block below !!!!!!!!!!!!!!!!!!!!!!!!
      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-     do igr=1,6 ! don't need       
+        do igr=1,6 ! don't need
            if(igr>1.and.igr<6) cycle
            ngrid=active(ilevel)%ngrid
 
@@ -352,7 +349,7 @@ recursive subroutine amr_step(ilevel,icount)
               if(ndim>1) xc(ind,2) = (dble(iy)-0.5d0)*dx ! BH_test
               if(ndim>2) xc(ind,3) = (dble(iz)-0.5d0)*dx ! BH_test
 
-              pii   =  4.0d0*datan(1.0d0)         ! BH_1D 
+              pii   =  4.0d0*datan(1.0d0)         ! BH_1D
 
               ! Loop over active grids
               do i=1,ngrid
@@ -360,9 +357,9 @@ recursive subroutine amr_step(ilevel,icount)
                  icell_amr = igrid_amr + iskip
 
                  do idim=1,ndim    ! BH_test
-                    if (idim.eq.1)  xs = xg(igrid_amr,idim) + xc(ind,idim) 
-                    if (idim.eq.2)  ys = xg(igrid_amr,idim) + xc(ind,idim) 
-                    if (idim.eq.3)  zs = xg(igrid_amr,idim) + xc(ind,idim) 
+                    if (idim.eq.1)  xs = xg(igrid_amr,idim) + xc(ind,idim)
+                    if (idim.eq.2)  ys = xg(igrid_amr,idim) + xc(ind,idim)
+                    if (idim.eq.3)  zs = xg(igrid_amr,idim) + xc(ind,idim)
                  end do            ! BH_test
 
                  ! Fix Psi (appearing as source)
@@ -373,18 +370,18 @@ recursive subroutine amr_step(ilevel,icount)
 
                  ! Sine density field test  (in my case this is chi=Adcos(2pix))
                  rho(icell_amr) = dcos(2.0d0*pii*xs)            ! Aij test
-                    
+
                  ! INVERSE APPROACH SOURCE
 !                 Amp=1.0d0
 !                 rho(icell_amr)=(3.0d0*twoac2*aomega-Amp*(8.0d0*pii**2*twoac2+15.0d0*aomega)*dsin(2.0d0*pii*xs))/3.0d0/aomega/(twoac2+Amp*dsin(2.0d0*pii*xs))
 
                  ! SPHERICALLY SYMMETRIC TESTS
-                 rr = dsqrt((xs-0.5d0)**2+(ys-0.5d0)**2+(zs-0.5d0)**2) 
+                 rr = dsqrt((xs-0.5d0)**2+(ys-0.5d0)**2+(zs-0.5d0)**2)
                  R0=0.01d0
                  Amp=1.0d0
 
 !                 ! Set imperfect spherical tophat source
-!                 rr = dsqrt((xs-0.5d0)**2+(ys-0.5d0)**2+(zs-0.5d0)**2) 
+!                 rr = dsqrt((xs-0.5d0)**2+(ys-0.5d0)**2+(zs-0.5d0)**2)
 !                 if(rr<0.004D0) then
 !                    gr_mat(icell_amr,1)= 256.0d0**3 ! Mind the grid size
 !                 end if
@@ -410,7 +407,7 @@ recursive subroutine amr_step(ilevel,icount)
            ! Solve one of the GR fields using the previous info
            call multigrid_fine_gr(ilevel,icount,igr)
            call multigrid_fine_extradof(ilevel,icount,2)  ! last place for isf
-            
+
            ! Write & Exit condition
            if(igr==6) then
               ngrid=active(ilevel)%ngrid
@@ -430,15 +427,15 @@ recursive subroutine amr_step(ilevel,icount)
                  do i=1,ngrid
                     igrid_amr = active(ilevel)%igrid(i)
                     icell_amr = igrid_amr + iskip
-                    
+
                     do idim=1,ndim    ! BH_test
-                       if (idim.eq.1)  xs = xg(igrid_amr,idim) + xc(ind,idim) 
-                       if (idim.eq.2)  ys = xg(igrid_amr,idim) + xc(ind,idim) 
-                       if (idim.eq.3)  zs = xg(igrid_amr,idim) + xc(ind,idim) 
+                       if (idim.eq.1)  xs = xg(igrid_amr,idim) + xc(ind,idim)
+                       if (idim.eq.2)  ys = xg(igrid_amr,idim) + xc(ind,idim)
+                       if (idim.eq.3)  zs = xg(igrid_amr,idim) + xc(ind,idim)
                     end do            ! BH_test
 
-                    ! Circular plots   
-!                    rr = dsqrt((xs-0.5d0)**2+(ys-0.5d0)**2+(zs-0.5d0)**2) 
+                    ! Circular plots
+!                    rr = dsqrt((xs-0.5d0)**2+(ys-0.5d0)**2+(zs-0.5d0)**2)
 !                    if(rr<0.004d0) then
 !                       write(*,'(6(f12.6,2x))') myid, xs, ys, zs, rr, gr_pot(icell_amr,4)
 !                    end if
@@ -446,12 +443,12 @@ recursive subroutine amr_step(ilevel,icount)
                     ! Spherically symmetric test
                     if(xs>0.5d0.and.zs>0.5D0.and.zs<0.5D0+1.0D0/256.0D0.and.ys>0.5D0.and.ys<0.5D0+1.0D0/256.0D0) then
                        write(*,'(6(f16.10,2x))') xs, ys, zs, gr_pot(icell_amr,6), src_mean, gr_pot(icell_amr,2)
-                    end if  
+                    end if
 
-!                    ! 1D test 
+!                    ! 1D test
 !                    if(zs>0.5D0.and.zs<0.5D0+1.0D0/256.0D0.and.ys>0.5D0.and.ys<0.5D0+1.0D0/256.0D0) then
 !                       write(*,'(6(f16.10,2x))') xs, ys, zs, gr_pot(icell_amr,6), src_mean, gr_pot(icell_amr,2)
-!                    end if  
+!                    end if
 
                  end do ! Loop over grids
               end do ! Loop over cells
@@ -460,7 +457,7 @@ recursive subroutine amr_step(ilevel,icount)
               if (myid==1) write(*,*) 'GR test finished for non-linear GR Solver. Now exiting.'
               call clean_stop
            end if ! Write condition
-           
+
         end do ! igr loop
 
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -468,7 +465,7 @@ recursive subroutine amr_step(ilevel,icount)
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
         ! Use GR fields from smallest to largest for synchro
-        do i=1,5     
+        do i=1,5
            igrp = gr_ord1(i)
            ! Compute force contribution from gr_pot
            call force_fine_gr(ilevel,icount,igrp)
@@ -482,8 +479,11 @@ recursive subroutine amr_step(ilevel,icount)
                  call synchro_fine_gr(ilevel,igrp)
               end if
            end if
-        end do   
-     end if  
+        end do
+     end if
+     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+     !!!!!!!!!!!!!!!!!!!! End GR test block !!!!!!!!!!!!!!!!!!!!!!!!!!
+     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
      if(hydro)then
                                   call timer('poisson','start')
@@ -668,8 +668,8 @@ recursive subroutine amr_step(ilevel,icount)
         end if
      end if
   else
-     ! Use GR fields from largest to smallest for move 
-     do i=1,6  
+     ! Use GR fields from largest to smallest for move
+     do i=1,6
         igrp = gr_ord2(i)
         ! Compute force contribution from gr_pot
         call force_fine_gr(ilevel,icount,igrp)
@@ -682,8 +682,8 @@ recursive subroutine amr_step(ilevel,icount)
            end if
         end if
      end do
-  end if 
-    
+  end if
+
   !----------------------------------
   ! Star formation in leaf cells only
   !----------------------------------

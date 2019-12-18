@@ -31,13 +31,28 @@ recursive subroutine amr_step(ilevel,icount)
   integer  :: i,idim,ivar,info
   integer  :: icell
   logical  :: ok_defrag,ok_output
-  real(dp) :: test_rho,test_rhobar
-  integer  :: ind,iskip
+  logical,save :: first_step=.true.
 
-  logical,save :: first_step = .true.
+  ! Declare test parameters
+  !    general
+  !real(dp) :: test_rho,test_rhobar
+  integer  :: ind,iskip,ngrid,igrid_amr,icell_amr
+  integer  :: ix,iy,iz,countc1,countc2             ! BH_test
+  real(dp),dimension(1:twotondim,1:ndim) :: xc     ! BH_test
+  real(dp) :: dx,Amp                               ! BH_test
+  !    one-dimensional
+  real(dp) :: pii                                  ! BH_test_1D
+  !    spherical overdensity
+  real(dp) :: rr,xs,ys,zs,R0                       ! BH_spherical
+  real(dp) :: ctilde, twoac2, aomega               ! BH_spherical
 
   if(numbtot(1,ilevel)==0) return
   if(verbose) write(*,999) icount,ilevel
+
+  ! Parameters to set size of spherical overdensity
+  ctilde = sol/boxlen_ini/100000.0d0    !GR_test
+  twoac2 = 2.0d0*(aexp*ctilde)**2       !GR_test
+  aomega = aexp*omega_m
 
   !--------------------------------
   ! Initialise the 5th-force arrays
@@ -72,14 +87,10 @@ recursive subroutine amr_step(ilevel,icount)
         do i=ilevel,nlevelmax
            if(i>levelmin) then
 
-              !--------------------------
               ! Build communicators
-              !--------------------------
               call build_comm(i)
 
-              !--------------------------
               ! Update boundaries
-              !--------------------------
               call make_virtual_fine_int(cpu_map(1),i)
 
               if(hydro) then
@@ -136,9 +147,7 @@ recursive subroutine amr_step(ilevel,icount)
 
            end if
 
-           !--------------------------
            ! Refine grids
-           !--------------------------
            call refine_fine(i)
         end do
      end if
@@ -287,29 +296,139 @@ recursive subroutine amr_step(ilevel,icount)
      else
         call multigrid_fine(levelmin,icount)
      end if
+
      !when there is no old potential...
 #ifndef OLDINTERP
      if (nstep==0) call save_phi_old(ilevel)
 #endif
 
-     ! Compute the extradof and its gradient
-     if(extradof) then
-        ! TODO for bf_src terms
-        call multigrid_fine_extradof(ilevel,icount,1)
-        ! get gradient of sf for:
-        !   (1) fifth force calculation
-        !   (2) interpolation to find sf for finer level
-        call   sf_grad_fine_extradof(ilevel,icount)
-#ifndef OLDINTERP
-        if(nstep==0) call save_extradof_old(ilevel)
-#endif
-        if(extradof4) then
-           ! for the b-mode, use write(*,*) to check b-mode
-           call multigrid_fine_extradof(ilevel,icount,2)
-           call multigrid_fine_extradof(ilevel,icount,3)
-           call multigrid_fine_extradof(ilevel,icount,4)
-        endif
-     endif
+     !--------------------------------------------------------------------------
+     ! Start of Test chi-distribution
+     !--------------------------------------------------------------------------
+     ! Compute the chi & B and its gradient of chi
+     if(extradof) then  ! if extradof is True
+        !   call multigrid_fine_extradof(ilevel,icount,1)
+        !   ! get gradient of sf for:
+        !   !   (1) fifth force calculation
+        !   !   (2) interpolation to find sf for finer level
+        !   call sf_grad_fine_extradof(ilevel,icount)
+
+        ! initialise test distribution of longitudinal/chi-mode cv-Galileon
+        ngrid=active(ilevel)%ngrid
+        do ind=1,twotondim  ! Loop over cells
+           iskip = ncoarse + (ind-1)*ngridmax
+
+           ! Set position of cell centers relative to grid center
+           iz = (ind-1)/4         ! BH_test
+           iy = (ind-1-4*iz)/2    ! BH_test
+           ix =  ind-1-4*iz-2*iy  ! BH_test
+           dx=0.5d0**ilevel       ! BH_test
+           if(ndim>0) xc(ind,1) = (dble(ix)-0.5d0)*dx  ! BH_test
+           if(ndim>1) xc(ind,2) = (dble(iy)-0.5d0)*dx  ! BH_test
+           if(ndim>2) xc(ind,3) = (dble(iz)-0.5d0)*dx  ! BH_test
+           pii   =  4.0d0*datan(1.0d0)  ! BH_1D
+
+           do i=1,ngrid  ! Loop over active grids
+              igrid_amr = active(ilevel)%igrid(i)
+              icell_amr = igrid_amr + iskip
+
+              do idim=1,ndim    ! BH_test
+                 if (idim.eq.1)  xs = xg(igrid_amr,idim) + xc(ind,idim)
+                 if (idim.eq.2)  ys = xg(igrid_amr,idim) + xc(ind,idim)
+                 if (idim.eq.3)  zs = xg(igrid_amr,idim) + xc(ind,idim)
+              end do            ! BH_test
+
+              ! Homogeneous field test of longitudinal/chi-mode cv-Galileon
+              !sf(icell_amr) = 1.0d0
+
+              ! one-dimensional cosine test of longitudinal/chi-mode cv-Galileon
+              sf(icell_amr) = Amp*dcos(2.0d0*pii*xs)
+
+              ! spherically symmetric top-hat test of longitudinal/chi-mode cv-Galileon
+              rr = dsqrt((xs-0.5d0)**2+(ys-0.5d0)**2+(zs-0.5d0)**2)
+              R0=0.01d0
+              Amp=1.0d0
+              if(rr<0.004D0) then
+                 sf(icell_amr) = Amp
+              end if
+
+              ! spherically symmetric gaussian test of longitudinal/chi-mode cv-Galileon
+              rr = dsqrt((xs-0.5d0)**2+(ys-0.5d0)**2+(zs-0.5d0)**2)
+              Amp=1.0d0  ! sigma
+              sf(icell_amr) = 1/(Amp*dsqrt(2*pii))*dexp(-0.5*rr/Amp)**2
+
+           end do ! Loop over grids
+        end do ! Loop over cells
+
+        ! share initial distribution of longitudinal/chi-mode with all cpu's
+        call make_virtual_fine_dp(sf(1)  ,ilevel)
+
+#ifnd   ef OLDINTERP
+           if(nstep==0) call save_extradof_old(ilevel)
+#endi   f
+
+           if(extradof4) then
+              ! compute transverse/B-mode of cv-Galileon based on longitudinal/chi-mode
+              call multigrid_fine_extradof(ilevel,icount,2)
+              call multigrid_fine_extradof(ilevel,icount,3)
+              call multigrid_fine_extradof(ilevel,icount,4)
+
+              ! TODO for the b-mode, use write(*,*) to check b-mode
+              !if(verbose) then
+              !   write(*,*) "The transverse/B-mode components are: "
+              !   write(*,'(3(f16.10,2x))') cbf(1), cbf(2), cbf(3)
+              !end if
+           endif
+
+
+        ! Write transverse/B-mode to files to compare with analytic solution
+        ngrid = active(ilevel)%ngrid
+
+        do ind=1,twotondim  ! Loop over cells
+           iskip = ncoarse + (ind-1)*ngridmax
+
+           ! Set position of cell centers relative to grid center
+           iz = (ind-1)/4        ! BH_test
+           iy = (ind-1-4*iz)/2   ! BH_test
+           ix =  ind-1-4*iz-2*iy ! BH_test
+           dx=0.5d0**ilevel      ! BH_test
+           if(ndim>0) xc(ind,1) = (dble(ix)-0.5d0)*dx ! BH_test
+           if(ndim>1) xc(ind,2) = (dble(iy)-0.5d0)*dx ! BH_test
+           if(ndim>2) xc(ind,3) = (dble(iz)-0.5d0)*dx ! BH_test
+
+           do i=1,ngrid  ! Loop over active grids
+              igrid_amr = active(ilevel)%igrid(i)
+              icell_amr = igrid_amr + iskip
+
+              do idim=1,ndim    ! BH_test
+                 if (idim.eq.1)  xs = xg(igrid_amr,idim) + xc(ind,idim)
+                 if (idim.eq.2)  ys = xg(igrid_amr,idim) + xc(ind,idim)
+                 if (idim.eq.3)  zs = xg(igrid_amr,idim) + xc(ind,idim)
+              end do            ! BH_test
+
+              ! Circular plots
+              !rr = dsqrt((xs-0.5d0)**2+(ys-0.5d0)**2+(zs-0.5d0)**2)
+              !if(rr<0.004d0) then
+              !   write(*,'(6(f12.6,2x))') myid, xs, ys, zs, rr, gr_pot(icell_amr,4)
+              !end if
+
+              ! Spherically symmetric test
+              if(xs>0.5d0.and.zs>0.5D0.and.zs<0.5D0+1.0D0/256.0D0.and.ys>0.5D0.and.ys<0.5D0+1.0D0/256.0D0) then
+                 write(*,'(8(f16.10,2x))') xs, ys, zs, sf(icell_amr), src_mean, cbf(icell_amr,2), cbf(icell_amr,3), cbf(icell_amr,4)
+              end if
+
+              !! 1D test
+              !if(zs>0.5D0.and.zs<0.5D0+1.0D0/256.0D0.and.ys>0.5D0.and.ys<0.5D0+1.0D0/256.0D0) then
+              !   write(*,'(6(f16.10,2x))') xs, ys, zs, gr_pot(icell_amr,6), src_mean, gr_pot(icell_amr,2)
+              !end if
+
+           end do ! Loop over grids
+        end do ! Loop over cells
+
+     endif  ! if extradof is True
+     !--------------------------------------------------------------------------
+     ! End of Test chi-distribution
+     !--------------------------------------------------------------------------
 
      ! Compute gravitational acceleration
      call force_fine(ilevel,icount)
@@ -323,9 +442,8 @@ recursive subroutine amr_step(ilevel,icount)
      end if
 
      if(hydro)then
-
         ! Compute Bondi-Hoyle accretion parameters
-        if(sink.and.bondi)call bondi_hoyle(ilevel)
+        if(sink.and.bondi) call bondi_hoyle(ilevel)
 
         ! Add gravity source term with half time step and new force
         call synchro_hydro_fine(ilevel,+0.5*dtnew(ilevel))
@@ -344,6 +462,7 @@ recursive subroutine amr_step(ilevel,icount)
 #endif
         if(simple_boundary)call make_boundary_hydro(ilevel)
      end if
+
   end if
 
 #ifdef RT

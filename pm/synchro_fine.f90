@@ -1,17 +1,27 @@
+!-------------------------------------------------------------------------------
+! This file contains 3 subroutine:
+!    1) synchro_fine: use sync or sync2 to compute particles velocity
+!    2) sync: use CIC to compute force on particle
+!    3) sync2: use TIC to compute force on particle
+!
+! Note: the contribution of the fifth-force is in
+! synchro_fine.f90 equivalent to move_fine.f90
+!-------------------------------------------------------------------------------
+
 subroutine synchro_fine(ilevel)
+  !--------------------------------------------------------------------
+  ! This routine synchronizes particle velocity with particle
+  ! position for ilevel particle only. If particle sits entirely
+  ! in level ilevel, then use inverse CIC at fine level to compute
+  ! the force. Otherwise, use coarse level force and coarse level CIC.
+  !--------------------------------------------------------------------
   use pm_commons
   use amr_commons
   implicit none
 #ifndef WITHOUTMPI
-  include 'mpif.h' 
+  include 'mpif.h'
 #endif
   integer::ilevel
-  !--------------------------------------------------------------------
-  ! This routine synchronizes particle velocity with particle
-  ! position for ilevel particle only. If particle sits entirely 
-  ! in level ilevel, then use inverse CIC at fine level to compute 
-  ! the force. Otherwise, use coarse level force and coarse level CIC.
-  !--------------------------------------------------------------------
   integer::igrid,jgrid,ipart,jpart
   integer::ig,ip,npart1,isink,info
   integer,dimension(1:nvector),save::ind_grid,ind_part,ind_grid_part
@@ -30,7 +40,7 @@ subroutine synchro_fine(ilevel)
   igrid=headl(myid,ilevel)
   do jgrid=1,numbl(myid,ilevel)
      npart1=numbp(igrid)  ! Number of particles in the grid
-     if(npart1>0)then        
+     if(npart1>0)then
         ig=ig+1
         ind_grid(ig)=igrid
         ipart=headp(igrid)
@@ -42,7 +52,7 @@ subroutine synchro_fine(ilevel)
            end if
            ip=ip+1
            ind_part(ip)=ipart
-           ind_grid_part(ip)=ig   
+           ind_grid_part(ip)=ig
            if(ip==nvector)then
 #ifdef TSC
               call sync2(ind_grid,ind_part,ind_grid_part,ig,ip,ilevel)
@@ -64,7 +74,7 @@ subroutine synchro_fine(ilevel)
 #else
   if(ip>0) call sync (ind_grid,ind_part,ind_grid_part,ig,ip,ilevel)
 #endif
-  
+
   if(sink)then
      if(nsink>0)then
 #ifndef WITHOUTMPI
@@ -77,15 +87,20 @@ subroutine synchro_fine(ilevel)
         fsink_partial(isink,1:ndim,ilevel)=fsink_all(isink,1:ndim)
      end do
   endif
-  
+
 111 format('   Entering synchro_fine for level ',I2)
 
 end subroutine synchro_fine
-!####################################################################
-!####################################################################
-!####################################################################
-!####################################################################
+
+
 subroutine sync(ind_grid,ind_part,ind_grid_part,ng,np,ilevel)
+  !------------------------------------------------------------
+  ! This routine computes the force on each particle by
+  ! inverse CIC and computes new velocitiess for all particles.
+  ! If particle entirely sits in fine level, CIC is performed
+  ! at level ilevel. Otherwise, it is performed at level ilevel-1.
+  ! This routine is called by synchro_fine.
+  !------------------------------------------------------------
   use amr_commons
   use amr_parameters
   use pm_commons
@@ -97,13 +112,6 @@ subroutine sync(ind_grid,ind_part,ind_grid_part,ng,np,ilevel)
   integer::ng,np,ilevel
   integer,dimension(1:nvector)::ind_grid
   integer,dimension(1:nvector)::ind_grid_part,ind_part
-  !
-  !
-  !
-  !
-  !
-  !
-  !
   logical::error
   integer::i,j,ind,idim,nx_loc,isink
   real(dp)::dx,length,scale,r2
@@ -123,7 +131,7 @@ subroutine sync(ind_grid,ind_part,ind_grid_part,ng,np,ilevel)
   real(dp) :: f0,f1,f2
 
   ! Mesh spacing in that level
-  dx=0.5D0**ilevel 
+  dx=0.5D0**ilevel
   nx_loc=(icoarse_max-icoarse_min+1)
   skip_loc=(/0.0d0,0.0d0,0.0d0/)
   if(ndim>0)skip_loc(1)=dble(icoarse_min)
@@ -311,11 +319,11 @@ subroutine sync(ind_grid,ind_part,ind_grid_part,ng,np,ilevel)
         icell(j,5)=1+icg(j,1)+3*icg(j,2)+9*icd(j,3)
         icell(j,6)=1+icd(j,1)+3*icg(j,2)+9*icd(j,3)
         icell(j,7)=1+icg(j,1)+3*icd(j,2)+9*icd(j,3)
-        icell(j,8)=1+icd(j,1)+3*icd(j,2)+9*icd(j,3)   
+        icell(j,8)=1+icd(j,1)+3*icd(j,2)+9*icd(j,3)
      end if
   end do
 #endif
-        
+
   ! Compute parent cell adresses
   do ind=1,twotondim
      do j=1,np
@@ -362,14 +370,16 @@ subroutine sync(ind_grid,ind_part,ind_grid_part,ng,np,ilevel)
         do j=1,np
            ! cv-Galileon (add fifth force to the total force if appropriate)
            if(extradof .and. extradof2 .and. .not.extradof3) then
-              ! full case
+              ! full
               f1         = f(indp(j,ind),idim) + alpha_cvg*sf_grad(indp(j,ind),idim)
               ff(j,idim) = ff(j,idim) + f1*vol(j,ind)
            else if(.not.extradof .and. extradof2 .and. extradof3) then
-              ! linearized case
+              ! linearized
+              ! \nabla^2\Phi = \Omega_m*a*\rho*(1 + \alpha/\beta)
+              ! \alpha/\beta is the 5th-force to Newtonian force ratio
               ff(j,idim)=ff(j,idim)+f(indp(j,ind),idim)*(1.0d0 + alpha_cvg/beta_cvg)*vol(j,ind)
            else
-              ! LambdaCDM case
+              ! LambdaCDM
               ff(j,idim)=ff(j,idim)+f(indp(j,ind),idim)*vol(j,ind)
            end if
         end do
@@ -435,11 +445,15 @@ subroutine sync(ind_grid,ind_part,ind_grid_part,ng,np,ilevel)
 
 end subroutine sync
 
-!#########################################################################
-!#########################################################################
-!#########################################################################
-!#########################################################################
+
 subroutine sync2(ind_grid,ind_part,ind_grid_part,ng,np,ilevel)
+  !------------------------------------------------------------
+  ! This routine computes the force on each particle by
+  ! inverse TSC and computes new velocitiess for all particles.
+  ! If particle entirely sits in fine level, TSC is performed
+  ! at level ilevel. Otherwise, it is performed at level ilevel-1.
+  ! This routine is called by synchro_fine.
+  !------------------------------------------------------------
   use amr_commons
   use amr_parameters
   use pm_commons
@@ -451,13 +465,6 @@ subroutine sync2(ind_grid,ind_part,ind_grid_part,ng,np,ilevel)
   integer::ng,np,ilevel
   integer,dimension(1:nvector)::ind_grid
   integer,dimension(1:nvector)::ind_grid_part,ind_part
-  !------------------------------------------------------------
-  ! This routine computes the force on each particle by
-  ! inverse TSC and computes new velocitiess for all particles.
-  ! If particle entirely sits in fine level, TSC is performed
-  ! at level ilevel. Otherwise, it is performed at level ilevel-1.
-  ! This routine is called by synchro_fine.
-  !------------------------------------------------------------
   logical::error
   integer::i,j,ind,idim,nx_loc,isink
   real(dp)::dx,length,scale,r2
@@ -479,7 +486,7 @@ subroutine sync2(ind_grid,ind_part,ind_grid_part,ng,np,ilevel)
   real(dp) :: f0,f1,f2
 
   ! Mesh spacing in that level
-  dx=0.5D0**ilevel 
+  dx=0.5D0**ilevel
   nx_loc=(icoarse_max-icoarse_min+1)
   skip_loc=(/0.0d0,0.0d0,0.0d0/)
   if(ndim>0)skip_loc(1)=dble(icoarse_min)
@@ -493,7 +500,7 @@ subroutine sync2(ind_grid,ind_part,ind_grid_part,ng,np,ilevel)
         x0(i,idim)=xg(ind_grid(i),idim)-3.0D0*dx
      end do
   end do
-  
+
   ! Gather 27 neighboring father cells (should be present anytime !)
   do i=1,ng
      ind_cell(i)=father(ind_grid(i))
@@ -536,7 +543,7 @@ subroutine sync2(ind_grid,ind_part,ind_grid_part,ng,np,ilevel)
      stop
   end if
 
-  ! TSC at level ilevel; a particle contributes 
+  ! TSC at level ilevel; a particle contributes
   !     to three cells in each dimension
   ! cl: position of leftmost cell centre
   ! cc: position of central cell centre
@@ -606,7 +613,7 @@ subroutine sync2(ind_grid,ind_part,ind_grid_part,ng,np,ilevel)
      end do
   end do
 
-  ! If particle not entirely sits in the refinement, 
+  ! If particle not entirely sits in the refinement,
   ! rescale position at level ilevel-1
   do idim=1,ndim
      do j=1,np
@@ -699,10 +706,10 @@ subroutine sync2(ind_grid,ind_part,ind_grid_part,ng,np,ilevel)
         icell(j,24)=1+icr(j,1)+3*icc(j,2)+9*icr(j,3)
         icell(j,25)=1+icl(j,1)+3*icr(j,2)+9*icr(j,3)
         icell(j,26)=1+icc(j,1)+3*icr(j,2)+9*icr(j,3)
-        icell(j,27)=1+icr(j,1)+3*icr(j,2)+9*icr(j,3)   
+        icell(j,27)=1+icr(j,1)+3*icr(j,2)+9*icr(j,3)
      end if
   end do
-        
+
   ! Compute parent cell adresses
   do ind=1,threetondim
      do j=1,np
@@ -744,7 +751,7 @@ subroutine sync2(ind_grid,ind_part,ind_grid_part,ng,np,ilevel)
      vol(j,26)=wc(j,1)*wr(j,2)*wr(j,3)
      vol(j,27)=wr(j,1)*wr(j,2)*wr(j,3)
   end do
-  
+
   ! Gather 3-force
   ff(1:np,1:ndim)=0.0D0
   do ind=1,threetondim
@@ -757,6 +764,8 @@ subroutine sync2(ind_grid,ind_part,ind_grid_part,ng,np,ilevel)
               ff(j,idim) = ff(j,idim) + f1*vol(j,ind)
            else if(.not.extradof .and. extradof2 .and. extradof3) then
               ! linearized case
+              ! \nabla^2\Phi = \Omega_m*a*\rho*(1 + \alpha/\beta)
+              ! \alpha/\beta is the 5th-force to Newtonian force ratio
               ff(j,idim)=ff(j,idim)+f(indp(j,ind),idim)*(1.0d0 + alpha_cvg/beta_cvg)*vol(j,ind)
            else
               ! LambdaCDM case
