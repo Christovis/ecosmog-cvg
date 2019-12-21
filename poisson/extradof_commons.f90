@@ -13,6 +13,7 @@ module extradof_commons
   !       bf_src4 : nabla_j\chi\nabla_i\nabdla_j\nabla^2\chi
   real(dp),allocatable,dimension(:)   :: sf
   real(dp)                            :: sf_src_mean
+  real(dp),dimension(1:4)             :: sf_src_mean2
   real(dp),allocatable,dimension(:)   :: sf_src
   real(dp),allocatable,dimension(:,:) :: sf_grad
   real(dp),allocatable,dimension(:)   :: sf_lp
@@ -22,6 +23,6 @@ module extradof_commons
   ! (are defined in ./amr/adaptive_loop.f90)
   real(dp) :: alpha_cvg  ! alpha function, needed for 5th force
   real(dp) :: beta_cvg   ! beta function, needed for 5th force
-  real(dp) :: rc_cvg     ! cross-over function, needed for Vainshtein radius
+  real(dp) :: rc_cvg     ! cross-over function Rc^2, needed for Vainshtein radius
 
 end module extradof_commons

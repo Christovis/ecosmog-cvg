@@ -537,10 +537,8 @@ subroutine refine_fine(ilevel)
 113 format('   ==> Kill ',i6,' sub-grids')
 
 end subroutine refine_fine
-!###############################################################
-!###############################################################
-!###############################################################
-!###############################################################
+
+
 subroutine make_grid_fine(ind_grid,ind_cell,ind,ilevel,nn,ibound,boundary_region)
   use amr_commons
   use hydro_commons
@@ -853,10 +851,10 @@ subroutine make_grid_fine(ind_grid,ind_cell,ind,ilevel,nn,ibound,boundary_region
      !===============================
      ! Interpolate extradof variables
      !===============================
-     if(extradof)then
+     if(extradof) then
         ! Use actual interpolation from coarse to fine cells;
-        ! This will be used to get the source term of the Galileon equation;
-        ! See subroutine "cmp_ps_fine_extradof" for the definition of ps(:).
+        ! This will be used to get the source term of the cv-Galileon equation;
+        ! See subroutine "cmp_ps_fine_extradof" for the definition of sf_lp(:).
         !call interpol_ps_extradof(ind_cell,u3,nn,ilevel)
         if(extradof4) then
            write(*,*) "Inconsistent use of refinement for b field"
@@ -896,11 +894,13 @@ subroutine make_grid_fine(ind_grid,ind_cell,ind,ilevel,nn,ibound,boundary_region
   endif
 
 end subroutine make_grid_fine
-!###############################################################
-!###############################################################
-!###############################################################
-!###############################################################
+
+
 subroutine kill_grid(ind_cell,ilevel,nn,ibound,boundary_region)
+  !----------------------------------------------------
+  ! This routine destroy the grids at level ilevel
+  ! contained in father cell ind_cell(:)
+  !----------------------------------------------------
   use amr_commons
   use pm_commons
   use hydro_commons
@@ -917,10 +917,6 @@ subroutine kill_grid(ind_cell,ilevel,nn,ibound,boundary_region)
   integer::nn,ilevel,ibound
   logical::boundary_region
   integer,dimension(1:nvector)::ind_cell
-  !----------------------------------------------------
-  ! This routine destroy the grids at level ilevel
-  ! contained in father cell ind_cell(:)
-  !----------------------------------------------------
   integer::igrid,iskip,icpu
   integer::i,j,idim,ind,ivar
   integer,dimension(1:nvector),save::ind_grid_son,ind_cell_son
@@ -1026,6 +1022,7 @@ subroutine kill_grid(ind_cell,ilevel,nn,ibound,boundary_region)
      do i=1,nn
         ind_cell_son(i)=iskip+ind_grid_son(i)
      end do
+     
      ! Tree variables
      do i=1,nn
         son     (ind_cell_son(i))=0
@@ -1034,6 +1031,7 @@ subroutine kill_grid(ind_cell,ilevel,nn,ibound,boundary_region)
         cpu_map (ind_cell_son(i))=0
         cpu_map2(ind_cell_son(i))=0
      end do
+
      ! Gravity variables
      if(poisson)then
         do i=1,nn
@@ -1049,12 +1047,13 @@ subroutine kill_grid(ind_cell,ilevel,nn,ibound,boundary_region)
            end do
         end do
      end if
-     ! extradof variables
+
+     ! cv-Galileon variables
      if(extradof) then
-        if(extradof4) then
-            write(*,*) "amr/refine_utils.f90: This version does not support the calculation atm."
-            call clean_stop
-        end if
+        !if(extradof4) then
+        !    write(*,*) "In amr/refine_utils.f90 kill_grid: transverse/B-mode of cv-Galileon is not supported at the moment"
+        !    call clean_stop
+        !end if
         do i=1,nn
            sf(ind_cell_son(i))=0.0D0
            sf_src(ind_cell_son(i))=0.0D0
@@ -1068,6 +1067,7 @@ subroutine kill_grid(ind_cell,ilevel,nn,ibound,boundary_region)
            end do
         end do
      end if
+
      ! Hydro variables
      if(hydro)then
 #ifdef SOLVERmhd
@@ -1085,6 +1085,7 @@ subroutine kill_grid(ind_cell,ilevel,nn,ibound,boundary_region)
         end do
 #endif
      end if
+
 #ifdef RT
      ! RT variables
      if(rt)then
@@ -1096,7 +1097,9 @@ subroutine kill_grid(ind_cell,ilevel,nn,ibound,boundary_region)
         end do
      end if
 #endif
+
 #ifdef ATON
+     ! ATON ray-tracing variables
      if(aton)then
         do i=1,nn
            Erad(ind_cell_son(i))=0.0D0

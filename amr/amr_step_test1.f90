@@ -305,66 +305,65 @@ recursive subroutine amr_step(ilevel,icount)
      !--------------------------------------------------------------------------
      ! Start of Test chi-distribution
      !--------------------------------------------------------------------------
-     ! initialise test distribution of longitudinal/chi-mode cv-Galileon
-     ngrid=active(ilevel)%ngrid
-     do ind=1,twotondim  ! Loop over cells
-        iskip = ncoarse + (ind-1)*ngridmax
-
-        ! Set position of cell centers relative to grid center
-        iz = (ind-1)/4         ! BH_test
-        iy = (ind-1-4*iz)/2    ! BH_test
-        ix = ind-1-4*iz-2*iy   ! BH_test
-        dx = 0.5d0**ilevel     ! BH_test
-        if(ndim>0) xc(ind,1) = (dble(ix)-0.5d0)*dx  ! BH_test
-        if(ndim>1) xc(ind,2) = (dble(iy)-0.5d0)*dx  ! BH_test
-        if(ndim>2) xc(ind,3) = (dble(iz)-0.5d0)*dx  ! BH_test
-        Amp = 1.0d0
-        pii = 4.0d0*datan(1.0d0)  ! BH_1D
-
-        do i=1,ngrid  ! Loop over active grids
-           igrid_amr = active(ilevel)%igrid(i)
-           icell_amr = igrid_amr + iskip
-
-           do idim=1,ndim    ! BH_test
-              if (idim.eq.1)  xs = xg(igrid_amr,idim) + xc(ind,idim)
-              if (idim.eq.2)  ys = xg(igrid_amr,idim) + xc(ind,idim)
-              if (idim.eq.3)  zs = xg(igrid_amr,idim) + xc(ind,idim)
-           end do            ! BH_test
-
-           ! Homogeneous field test of longitudinal/chi-mode cv-Galileon
-           !sf(icell_amr) = 1.0d0
-
-           ! one-dimensional cosine test of longitudinal/chi-mode cv-Galileon
-           rho(icell_amr) = -2.0d0*beta_cvg/(3.0d0*aexp*omega_m)*Amp*dsin(2.0d0*pii*xs)
-           !rho(icell_amr) = Amp*dsin(2.0d0*pii*xs)
-
-           !! spherically symmetric top-hat test of longitudinal/chi-mode cv-Galileon
-           !rr = dsqrt((xs-0.5d0)**2+(ys-0.5d0)**2+(zs-0.5d0)**2)
-           !R0=0.01d0
-           !Amp=1.0d0
-           !if(rr<0.004D0) then
-           !   sf(icell_amr) = Amp
-           !end if
-
-           !! spherically symmetric gaussian test of longitudinal/chi-mode cv-Galileon
-           !rr = dsqrt((xs-0.5d0)**2+(ys-0.5d0)**2+(zs-0.5d0)**2)
-           !Amp=1.0d0  ! sigma
-           !sf(icell_amr) = 1/(Amp*dsqrt(2*pii))*dexp(-0.5*rr/Amp)**2
-
-        end do ! Loop over grids
-     end do ! Loop over cells
-
-     call make_virtual_fine_dp(rho(1) ,ilevel)
-
-     !--------------------------------------------------------------------------
      ! Compute the chi & B and its gradient of chi
      !--------------------------------------------------------------------------
      if(extradof) then  ! if extradof is True
-        call multigrid_fine_extradof(ilevel,icount,1)
-        ! get gradient of sf for:
-        !   (1) fifth force calculation
-        !   (2) interpolation to find sf for finer level
-        call sf_grad_fine_extradof(ilevel,icount)
+        !   call multigrid_fine_extradof(ilevel,icount,1)
+        !   ! get gradient of sf for:
+        !   !   (1) fifth force calculation
+        !   !   (2) interpolation to find sf for finer level
+        !   call sf_grad_fine_extradof(ilevel,icount)
+
+        ! initialise test distribution of longitudinal/chi-mode cv-Galileon
+        ngrid=active(ilevel)%ngrid
+        do ind=1,twotondim  ! Loop over cells
+           iskip = ncoarse + (ind-1)*ngridmax
+
+           ! Set position of cell centers relative to grid center
+           iz = (ind-1)/4         ! BH_test
+           iy = (ind-1-4*iz)/2    ! BH_test
+           ix = ind-1-4*iz-2*iy   ! BH_test
+           dx = 0.5d0**ilevel     ! BH_test
+           if(ndim>0) xc(ind,1) = (dble(ix)-0.5d0)*dx  ! BH_test
+           if(ndim>1) xc(ind,2) = (dble(iy)-0.5d0)*dx  ! BH_test
+           if(ndim>2) xc(ind,3) = (dble(iz)-0.5d0)*dx  ! BH_test
+           Amp = 1.0d0
+           pii = 4.0d0*datan(1.0d0)  ! BH_1D
+
+           do i=1,ngrid  ! Loop over active grids
+              igrid_amr = active(ilevel)%igrid(i)
+              icell_amr = igrid_amr + iskip
+
+              do idim=1,ndim    ! BH_test
+                 if (idim.eq.1)  xs = xg(igrid_amr,idim) + xc(ind,idim)
+                 if (idim.eq.2)  ys = xg(igrid_amr,idim) + xc(ind,idim)
+                 if (idim.eq.3)  zs = xg(igrid_amr,idim) + xc(ind,idim)
+              end do            ! BH_test
+
+              ! Homogeneous field test of longitudinal/chi-mode cv-Galileon
+              !sf(icell_amr) = 1.0d0
+
+              ! one-dimensional cosine test of longitudinal/chi-mode cv-Galileon
+              sf(icell_amr) = Amp*dsin(2.0d0*pii*xs)
+
+              !! spherically symmetric top-hat test of longitudinal/chi-mode cv-Galileon
+              !rr = dsqrt((xs-0.5d0)**2+(ys-0.5d0)**2+(zs-0.5d0)**2)
+              !R0=0.01d0
+              !Amp=1.0d0
+              !if(rr<0.004D0) then
+              !   sf(icell_amr) = Amp
+              !end if
+
+              !! spherically symmetric gaussian test of longitudinal/chi-mode cv-Galileon
+              !rr = dsqrt((xs-0.5d0)**2+(ys-0.5d0)**2+(zs-0.5d0)**2)
+              !Amp=1.0d0  ! sigma
+              !sf(icell_amr) = 1/(Amp*dsqrt(2*pii))*dexp(-0.5*rr/Amp)**2
+
+           end do ! Loop over grids
+        end do ! Loop over cells
+
+        ! share initial distribution of longitudinal/chi-mode with all cpu's
+        call make_virtual_fine_dp(sf(1), ilevel)
 
 #ifndef OLDINTERP
            if(nstep==0) call save_extradof_old(ilevel)
@@ -375,55 +374,62 @@ recursive subroutine amr_step(ilevel,icount)
            call multigrid_fine_extradof(ilevel,icount,2)
            call multigrid_fine_extradof(ilevel,icount,3)
            call multigrid_fine_extradof(ilevel,icount,4)
-        end if
-     end if
 
-     ! Write transverse/B-mode to files to compare with analytic solution
-     ngrid = active(ilevel)%ngrid
-
-     do ind=1,twotondim  ! Loop over cells
-        iskip = ncoarse + (ind-1)*ngridmax
-
-        ! Set position of cell centers relative to grid center
-        iz = (ind-1)/4        ! BH_test
-        iy = (ind-1-4*iz)/2   ! BH_test
-        ix = ind-1-4*iz-2*iy ! BH_test
-        dx=0.5d0**ilevel      ! BH_test
-        if(ndim>0) xc(ind,1) = (dble(ix)-0.5d0)*dx ! BH_test
-        if(ndim>1) xc(ind,2) = (dble(iy)-0.5d0)*dx ! BH_test
-        if(ndim>2) xc(ind,3) = (dble(iz)-0.5d0)*dx ! BH_test
-
-        do i=1,ngrid  ! Loop over active grids
-           igrid_amr = active(ilevel)%igrid(i)
-           icell_amr = igrid_amr + iskip
-
-           do idim=1,ndim    ! BH_test
-              if (idim.eq.1) xs = xg(igrid_amr,idim) + xc(ind,idim)
-              if (idim.eq.2) ys = xg(igrid_amr,idim) + xc(ind,idim)
-              if (idim.eq.3) zs = xg(igrid_amr,idim) + xc(ind,idim)
-           end do            ! BH_test
-
-           ! 1D test
-           if(zs>0.5D0 .and. zs<0.5D0+1.0D0/128.0D0 .and. &
-              ys>0.5D0 .and. ys<0.5D0+1.0D0/128.0D0) then
-              write(*,'(A,10(F16.10,2x))') 'cvg ', aexp, beta_cvg, xs, ys, zs, rho(icell_amr), sf(icell_amr), cbf(icell_amr,1), cbf(icell_amr,2), cbf(icell_amr,3)
-           end if
-           
-           ! Circular plots
-           !rr = dsqrt((xs-0.5d0)**2+(ys-0.5d0)**2+(zs-0.5d0)**2)
-           !if(rr<0.004d0) then
-           !   write(*,'(6(f12.6,2x))') myid, xs, ys, zs, rr, gr_pot(icell_amr,4)
+           ! TODO for the b-mode, use write(*,*) to check b-mode
+           !if(verbose) then
+           !   write(*,*) "The transverse/B-mode components are: "
+           !   write(*,'(3(f16.10,2x))') cbf(1), cbf(2), cbf(3)
            !end if
+        endif
 
-           ! Spherically symmetric test
-           !if(xs>0.5d0 .and. ys>0.5D0 .and. zs>0.5D0 .and. &
-           !   ys<0.5D0+1.0D0/128.0D0 .and. zs<0.5D0+1.0D0/128.0D0) then
-           !   write(*,'(7(f16.10,2x))') xs, ys, zs, sf(icell_amr), cbf(icell_amr,1), cbf(icell_amr,2), cbf(icell_amr,3)
-           !end if
 
-        end do ! Loop over grids
-     end do ! Loop over cells
+        ! Write transverse/B-mode to files to compare with analytic solution
+        ngrid = active(ilevel)%ngrid
 
+        do ind=1,twotondim  ! Loop over cells
+           iskip = ncoarse + (ind-1)*ngridmax
+
+           ! Set position of cell centers relative to grid center
+           iz = (ind-1)/4        ! BH_test
+           iy = (ind-1-4*iz)/2   ! BH_test
+           ix = ind-1-4*iz-2*iy ! BH_test
+           dx=0.5d0**ilevel      ! BH_test
+           if(ndim>0) xc(ind,1) = (dble(ix)-0.5d0)*dx ! BH_test
+           if(ndim>1) xc(ind,2) = (dble(iy)-0.5d0)*dx ! BH_test
+           if(ndim>2) xc(ind,3) = (dble(iz)-0.5d0)*dx ! BH_test
+
+           do i=1,ngrid  ! Loop over active grids
+              igrid_amr = active(ilevel)%igrid(i)
+              icell_amr = igrid_amr + iskip
+
+              do idim=1,ndim    ! BH_test
+                 if (idim.eq.1) xs = xg(igrid_amr,idim) + xc(ind,idim)
+                 if (idim.eq.2) ys = xg(igrid_amr,idim) + xc(ind,idim)
+                 if (idim.eq.3) zs = xg(igrid_amr,idim) + xc(ind,idim)
+              end do            ! BH_test
+
+              ! 1D test
+              if(zs>0.5D0 .and. zs<0.5D0+1.0D0/128.0D0 .and. &
+                 ys>0.5D0 .and. ys<0.5D0+1.0D0/128.0D0) then
+                 write(*,'(A,7(F16.10,2x))') 'cvg ', xs, ys, zs, sf(icell_amr), cbf(icell_amr,1), cbf(icell_amr,2), cbf(icell_amr,3)
+              end if
+              
+              ! Circular plots
+              !rr = dsqrt((xs-0.5d0)**2+(ys-0.5d0)**2+(zs-0.5d0)**2)
+              !if(rr<0.004d0) then
+              !   write(*,'(6(f12.6,2x))') myid, xs, ys, zs, rr, gr_pot(icell_amr,4)
+              !end if
+
+              ! Spherically symmetric test
+              !if(xs>0.5d0 .and. ys>0.5D0 .and. zs>0.5D0 .and. &
+              !   ys<0.5D0+1.0D0/128.0D0 .and. zs<0.5D0+1.0D0/128.0D0) then
+              !   write(*,'(7(f16.10,2x))') xs, ys, zs, sf(icell_amr), cbf(icell_amr,1), cbf(icell_amr,2), cbf(icell_amr,3)
+              !end if
+
+           end do ! Loop over grids
+        end do ! Loop over cells
+
+     endif  ! if extradof is True
      !--------------------------------------------------------------------------
      ! End of Test chi-distribution
      !--------------------------------------------------------------------------
