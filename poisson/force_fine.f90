@@ -1,9 +1,8 @@
-!#########################################################
-!#########################################################
-!#########################################################
-!#########################################################
 subroutine force_fine(ilevel,icount)
-
+  !----------------------------------------------------------
+  ! This routine computes the gravitational acceleration,
+  ! the maximum density rho_max, and the potential energy
+  !----------------------------------------------------------
   use amr_commons
   use pm_commons
   use poisson_commons
@@ -14,12 +13,6 @@ subroutine force_fine(ilevel,icount)
 #endif
 
   integer::ilevel,icount
-
-  !----------------------------------------------------------
-  ! This routine computes the gravitational acceleration,
-  ! the maximum density rho_max, and the potential energy
-  !----------------------------------------------------------
-
   integer::igrid,ngrid,ncache,i,ind,iskip,ix,iy,iz
   integer::info,ibound,nx_loc,idim
   real(dp)::dx,dx_loc,scale,fact,fourpi
@@ -190,11 +183,14 @@ subroutine force_fine(ilevel,icount)
 111 format('   Entering force_fine for level ',I2)
 
 end subroutine force_fine
-!#########################################################
-!#########################################################
-!#########################################################
-!#########################################################
+
+
 subroutine gradient_phi(ind_grid,ngrid,ilevel,icount)
+  !-------------------------------------------------
+  ! This routine compute the 3-force for all cells
+  ! in grids ind_grid(:) at level ilevel, using a
+  ! 5 nodes kernel (5 points FDA).
+  !-------------------------------------------------
   use amr_commons
   use amr_parameters
   use pm_commons
@@ -204,11 +200,6 @@ subroutine gradient_phi(ind_grid,ngrid,ilevel,icount)
   implicit none
   integer::ngrid,ilevel,icount
   integer,dimension(1:nvector)::ind_grid
-  !-------------------------------------------------
-  ! This routine compute the 3-force for all cells
-  ! in grids ind_grid(:) at level ilevel, using a
-  ! 5 nodes kernel (5 points FDA).
-  !-------------------------------------------------
   integer::i,idim,ind,iskip,nx_loc
   integer::id1,id2,id3,id4
   integer::ig1,ig2,ig3,ig4
@@ -324,4 +315,3 @@ subroutine gradient_phi(ind_grid,ngrid,ilevel,icount)
   end do
 
 end subroutine gradient_phi
-

@@ -36,23 +36,31 @@ recursive subroutine amr_step(ilevel,icount)
   ! Declare test parameters
   !    general
   real(dp) :: test_rho,test_rhobar
+  real(dp) :: xs,ys,zs
+  integer  :: ix,iy,iz
   integer  :: ind,iskip,ngrid,igrid_amr,icell_amr
-  integer  :: ix,iy,iz,countc1,countc2             ! test
+  integer  :: countc1,countc2
   real(dp),dimension(1:twotondim,1:ndim) :: xc     ! test
-  real(dp) :: dx,Amp                               ! test
-  !    one-dimensional
-  real(dp) :: pii                                  ! test_1D
-  !    spherical overdensity
-  real(dp) :: rr,xs,ys,zs,R0                       ! spherical
-  real(dp) :: ctilde, twoac2, aomega               ! spherical
+  real(dp) :: dx                                   ! test
+  real(dp) :: Amp,pii                              ! 1D sine test
+  !real(dp) :: Amp,sigma,alpha                      ! 1D gaussian test
+  !real(dp) :: rr,R0                                ! spherical test
+  !real(dp) :: ctilde, twoac2, aomega               ! spherical test
 
   if(numbtot(1,ilevel)==0) return
   if(verbose) write(*,999) icount,ilevel
 
-  ! Parameters to set size of spherical overdensity
-  ctilde = sol/boxlen_ini/100000.0d0    ! test
-  twoac2 = 2.0d0*(aexp*ctilde)**2       ! test
-  aomega = aexp*omega_m
+  ! Parameter for 1D sine test
+  Amp = 0.00000005d0
+  pii = 4.0d0*datan(1.0d0)
+  ! Parameter for 1D gauss test
+  !Amp = 0.000005d0
+  !sigma = 0.09
+  !alpha = 0.01
+  ! Parameters to set size of spherical overdensity test
+  !ctilde = sol/boxlen_ini/100000.0d0    ! test
+  !twoac2 = 2.0d0*(aexp*ctilde)**2       ! test
+  !aomega = aexp*omega_m
 
   !--------------------------------
   ! Initialise the 5th-force arrays
@@ -318,8 +326,6 @@ recursive subroutine amr_step(ilevel,icount)
         if(ndim>0) xc(ind,1) = (dble(ix)-0.5d0)*dx  ! BH_test
         if(ndim>1) xc(ind,2) = (dble(iy)-0.5d0)*dx  ! BH_test
         if(ndim>2) xc(ind,3) = (dble(iz)-0.5d0)*dx  ! BH_test
-        Amp = 1.0d0
-        pii = 4.0d0*datan(1.0d0)  ! BH_1D
 
         do i=1,ngrid  ! Loop over active grids
            igrid_amr = active(ilevel)%igrid(i)
@@ -331,24 +337,30 @@ recursive subroutine amr_step(ilevel,icount)
               if (idim.eq.3)  zs = xg(igrid_amr,idim) + xc(ind,idim)
            end do            ! BH_test
 
-           ! Homogeneous field test of longitudinal/chi-mode cv-Galileon
-           !sf(icell_amr) = 1.0d0
-
-           ! one-dimensional cosine test of longitudinal/chi-mode cv-Galileon
-           rho(icell_amr) = -2.0d0*beta_cvg/(3.0d0*aexp*omega_m)*Amp*dsin(2.0d0*pii*xs)
-           !rho(icell_amr) = Amp*dsin(2.0d0*pii*xs)
+           ! 1D sine test of longitudinal/chi-mode cv-Galileon
+           rho(icell_amr) = 1.0d0-8.0d0*beta_cvg*pii**2/(3.0d0*aexp*omega_m)*Amp*dsin(2.0d0*pii*xs)
+           !sf(icell_amr) = Amp*dsin(2.0d0*pii*xs)  ! initial guess
+           
+           ! 1D gaussian test of longitudinal/chi-mode cv-Galileon
+           !rho(icell_amr) = 1.0d0 + 2.0d0*beta_cvg/(3.0d0*omega_m*aexp) &
+           !               * 2.0d0*Amp*alpha/sigma**2 &
+           !               * (1.0d0 - 2.0d0*(xs-0.5d0)**2/sigma**2) &
+           !               * dexp(-(xs-0.5d0)**2/sigma**2)
+           !sf(icell_amr) = Amp*(1.0d0 - alpha*dexp(-(xs-0.5d0)**2/sigma**2))  ! initial guess
+           
+           if(rho(icell_amr) < 0.0d0)then 
+               write(*,*) "this is beta_cvg",beta_cvg,rho(icell_amr)
+           end if
 
            !! spherically symmetric top-hat test of longitudinal/chi-mode cv-Galileon
            !rr = dsqrt((xs-0.5d0)**2+(ys-0.5d0)**2+(zs-0.5d0)**2)
            !R0=0.01d0
-           !Amp=1.0d0
            !if(rr<0.004D0) then
            !   sf(icell_amr) = Amp
            !end if
 
            !! spherically symmetric gaussian test of longitudinal/chi-mode cv-Galileon
            !rr = dsqrt((xs-0.5d0)**2+(ys-0.5d0)**2+(zs-0.5d0)**2)
-           !Amp=1.0d0  ! sigma
            !sf(icell_amr) = 1/(Amp*dsqrt(2*pii))*dexp(-0.5*rr/Amp)**2
 
         end do ! Loop over grids

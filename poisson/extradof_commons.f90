@@ -2,7 +2,10 @@ module extradof_commons
   use amr_parameters
 
   ! sf : longitudinal/chi-mode of proca field
-  ! sf_src_mean : mean of sf (subroutine in multigrid_fine_commons_extradof.f90)
+  ! sf_src_mean : mean of momentarily solved 5th-force field, meaning sf or cbf
+  !               (subroutine in multigrid_fine_commons_extradof.f90)
+  ! sf_src_mean2 : the same as sf_src_mean but it is not overwrittin within a
+  !                time-step
   ! sf_grad : gradiant of sf
   ! sf_lp : laplacian of longitudinal mode, \nabla^2\chi
   ! cbf : transverse/B-mode of proca field

@@ -1,9 +1,7 @@
-!#########################################################
-!#########################################################
-!#########################################################
-!#########################################################
 subroutine sf_grad_fine_extradof(ilevel,icount)
-
+  !----------------------------------------------------------
+  ! Covering routine to compute the gradient of the extradof
+  !----------------------------------------------------------
   use amr_commons
   use pm_commons
   use poisson_commons
@@ -16,12 +14,7 @@ subroutine sf_grad_fine_extradof(ilevel,icount)
   include 'mpif.h'
 #endif
 
-  integer :: ilevel,icount
-
-  !----------------------------------------------------------
-  ! Covering routine to compute the gradient of the extradof
-  !----------------------------------------------------------
-
+  integer  :: ilevel,icount
   integer  :: igrid,ngrid,ncache,i,ind,iskip,ix,iy,iz
   integer  :: idim
   real(dp) :: dx
@@ -63,13 +56,12 @@ subroutine sf_grad_fine_extradof(ilevel,icount)
 
 end subroutine sf_grad_fine_extradof
 
-!#########################################################
-!#########################################################
-!#########################################################
-!#########################################################
 
 subroutine gradient_extradof(ind_grid,ngrid,ilevel,icount)
-
+  !----------------------------------------------------------------
+  ! This routine compute the 3-grad of the extradof for all cells
+  ! in grids ind_grid(:) at level ilevel, using five-points FDA
+  !----------------------------------------------------------------
   use amr_commons
   use pm_commons
   use poisson_commons
@@ -80,12 +72,6 @@ subroutine gradient_extradof(ind_grid,ngrid,ilevel,icount)
 
   integer::ngrid,ilevel,icount           ! number of grids, level #
   integer,dimension(1:nvector)::ind_grid ! grid index
-
-  !----------------------------------------------------------------
-  ! This routine compute the 3-grad of the extradof for all cells
-  ! in grids ind_grid(:) at level ilevel, using five-points FDA
-  !----------------------------------------------------------------
-
   integer::i,idim,ind,iskip
   integer::id1,id2,id3,id4
   integer::ig1,ig2,ig3,ig4

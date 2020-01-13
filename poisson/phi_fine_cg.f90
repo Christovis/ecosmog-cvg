@@ -1,7 +1,3 @@
-!###########################################################
-!###########################################################
-!###########################################################
-!###########################################################
 subroutine phi_fine_cg(ilevel,icount)
   use amr_commons
   use pm_commons
@@ -441,10 +437,7 @@ subroutine cmp_Ap_cg(ilevel)
 
 end subroutine cmp_Ap_cg
 
-!###########################################################
-!###########################################################
-!###########################################################
-!###########################################################
+
 subroutine make_initial_phi(ilevel,icount)
   use amr_commons
   use pm_commons
@@ -517,10 +510,7 @@ subroutine make_initial_phi(ilevel,icount)
 
 end subroutine make_initial_phi
 
-!###########################################################
-!###########################################################
-!###########################################################
-!###########################################################
+
 subroutine make_initial_extradof(ilevel,icount)
   use amr_commons
   use pm_commons
@@ -583,8 +573,9 @@ subroutine make_initial_extradof(ilevel,icount)
         do i=1,ngrid
            ind_cell_father(i)=father(ind_grid(i))
         end do
-        
-        call interpol_extradof(ind_cell_father, sf_int,ngrid,ilevel,icount) ! new or old scheme
+
+        ! TODO: new or old scheme
+        call interpol_extradof(ind_cell_father, sf_int, ngrid, ilevel, icount)
         
         !if(extradof4) then
         !   write(*,*) "B field has no interpol such rountine"
@@ -628,10 +619,7 @@ subroutine make_initial_extradof(ilevel,icount)
 
 end subroutine make_initial_extradof
 
-!###########################################################
-!###########################################################
-!###########################################################
-!###########################################################
+
 subroutine make_multipole_phi(ilevel)
   use amr_commons
   use pm_commons

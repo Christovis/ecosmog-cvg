@@ -61,6 +61,7 @@ subroutine cmp_residual_mg_fine_extradof(ilevel,isf)
    dx  = 0.5d0**ilevel
    dx2 = dx*dx
 
+   ! parameter from second-order alg. Eq. of \nabla^2\chi
    alpha_sf = beta_cvg*aexp**4/rc_cvg
 
    ngrid=active(ilevel)%ngrid
@@ -90,23 +91,12 @@ subroutine cmp_residual_mg_fine_extradof(ilevel,isf)
                   nb_sum_sfi(2)  = sf(nbors_cells(i,11))+sf(nbors_cells(i,17))
                   nb_sum_sfi(3)  = sf(nbors_cells(i, 5))+sf(nbors_cells(i,23))
 
-                  !nb_diff_sf_lpi(1)  = sf_lp(nbors_cells(i,13))-sf_lp(nbors_cells(i,15))
-                  !nb_diff_sf_lpi(2)  = sf_lp(nbors_cells(i,11))-sf_lp(nbors_cells(i,17))
-                  !nb_diff_sf_lpi(3)  = sf_lp(nbors_cells(i, 5))-sf_lp(nbors_cells(i,23))
-
                   nb_sum_sfij(1) = sf(nbors_cells(i,18))+sf(nbors_cells(i,10)) - &
                                  & sf(nbors_cells(i,12))-sf(nbors_cells(i,16)) ! sf_{,xy}
                   nb_sum_sfij(2) = sf(nbors_cells(i,24))+sf(nbors_cells(i, 4)) - &
                                  & sf(nbors_cells(i, 6))-sf(nbors_cells(i,22)) ! sf_{,xz}
                   nb_sum_sfij(3) = sf(nbors_cells(i,26))+sf(nbors_cells(i, 2)) - &
                                  & sf(nbors_cells(i, 8))-sf(nbors_cells(i,20)) ! sf_{,yz}
-
-                  !nb_sum_sf_lpij(1) = sf_lp(nbors_cells(i,18))+sf_lp(nbors_cells(i,10)) - &
-                  !                  & sf_lp(nbors_cells(i,12))-sf_lp(nbors_cells(i,16)) ! sl_lp_{,xy}
-                  !nb_sum_sf_lpij(2) = sf_lp(nbors_cells(i,24))+sf_lp(nbors_cells(i, 4)) - &
-                  !                  & sf_lp(nbors_cells(i, 6))-sf_lp(nbors_cells(i,22)) ! sl_lp_{,xz}
-                  !nb_sum_sf_lpij(3) = sf_lp(nbors_cells(i,26))+sf_lp(nbors_cells(i, 2)) - &
-                  !                  & sf_lp(nbors_cells(i, 8))-sf_lp(nbors_cells(i,20)) ! sl_lp_{,yz}
 
                   eta =   1.0d0/3.0d0/dx2**2*nb_sum_sfi (1)*(2.0d0*nb_sum_sfi (1)-nb_sum_sfi(2)-nb_sum_sfi(3))   + &
                         & 1.0d0/3.0d0/dx2**2*nb_sum_sfi (2)*(2.0d0*nb_sum_sfi (2)-nb_sum_sfi(1)-nb_sum_sfi(3))   + &
@@ -115,6 +105,7 @@ subroutine cmp_residual_mg_fine_extradof(ilevel,isf)
                         &     0.125d0/dx2**2*nb_sum_sfij(2)*       nb_sum_sfij(2)                                + &
                         &     0.125d0/dx2**2*nb_sum_sfij(3)*       nb_sum_sfij(3)
 
+                  ! derived form Eq.(69)
                   eta = eta+1.5d0*(alpha_sf/beta_cvg)*omega_m*aexp*(rho(icell_amr(i))-rho_tot)
                   eta = alpha_sf**2+8.0d0/3.0d0*eta
 
@@ -130,9 +121,13 @@ subroutine cmp_residual_mg_fine_extradof(ilevel,isf)
                   op = nb_sum_sfi(1)+nb_sum_sfi(2)+nb_sum_sfi(3) - 6.0d0*sfc
 
                   if(alpha_sf>=0.0d0) then
-                     op = op-(0.75d0*(-alpha_sf+dsqrt(eta))-sf_src_mean)*dx2
+                     ! derived form Eq.(69)
+                     !op = op-(0.75d0*(-alpha_sf+dsqrt(eta))-sf_src_mean)*dx2
+                     op = op - 1.5d0*omega_m/beta_cvg*aexp*(rho(icell_amr(i))-rho_tot)*dx2
                   else
-                     op = op-(0.75d0*(-alpha_sf-dsqrt(eta))-sf_src_mean)*dx2
+                     ! derived form Eq.(69)
+                     !op = op-(0.75d0*(-alpha_sf-dsqrt(eta))-sf_src_mean)*dx2
+                     op = op - 1.5d0*omega_m/beta_cvg*aexp*(rho(icell_amr(i))-rho_tot)*dx2
                   end if
 
                   f(icell_amr(i),1) = -op/dx2
@@ -204,9 +199,8 @@ subroutine cmp_residual_mg_fine_extradof(ilevel,isf)
                      bf_src4 = -nb_diff_sfi(2)*nb_sum_sf_lpij(1) &
                                -nb_diff_sfi(3)*nb_sum_sf_lpij(2) &
                                -nb_diff_sfi(1)*nb_sum_sf_lpi (1)
-                  endif
 
-                  if(isf.eq.3) then
+                  else if(isf.eq.3) then
                      bf_src1 = nb_sum_sfij(1)*nb_diff_sf_lpi(1) &
                              + nb_sum_sfij(3)*nb_diff_sf_lpi(3) &
                              + nb_sum_sfi (2)*nb_diff_sf_lpi(2)
@@ -215,9 +209,8 @@ subroutine cmp_residual_mg_fine_extradof(ilevel,isf)
                      bf_src4 = -nb_diff_sfi(1)*nb_sum_sf_lpij(1) &
                                -nb_diff_sfi(3)*nb_sum_sf_lpij(3) &
                                -nb_diff_sfi(2)*nb_sum_sf_lpi (2)
-                  endif
 
-                  if(isf.eq.4) then
+                  else if(isf.eq.4) then
                      bf_src1 = nb_sum_sfij(2)*nb_diff_sf_lpi(1) &
                              + nb_sum_sfij(3)*nb_diff_sf_lpi(2) &
                              + nb_sum_sfi (3)*nb_diff_sf_lpi(3)
@@ -378,6 +371,12 @@ subroutine gauss_seidel_mg_fine_extradof(ilevel,isf,redstep)
    integer  :: ngrid
    integer  :: ind,ind0,igrid_mg,idim,inbor
    integer  :: iskip_amr
+   ! verbose test
+   integer  :: tti,ttind,ttiskip,ttngrid,ttigrid_amr,tticell_amr
+   integer  :: ix,iy,iz,countc1,countc2
+   real(dp) :: xs,ys,zs
+   real(dp),dimension(1:twotondim,1:ndim) :: xc
+   ! verbose test
    integer  :: igshift,igrid_nbor_amr,icell_nbor_amr
 
    real(dp) :: dtwondim = (twondim)
@@ -399,6 +398,7 @@ subroutine gauss_seidel_mg_fine_extradof(ilevel,isf,redstep)
    dx2 = dx*dx
    dx3 = dx2*dx
 
+   ! parameter from second-order alg. Eq. of \nabla^2\chi
    alpha_sf = beta_cvg*aexp**4/rc_cvg
 
    ired  (1,1:8)=(/1,0,0,0,0,0,0,0/)
@@ -411,7 +411,7 @@ subroutine gauss_seidel_mg_fine_extradof(ilevel,isf,redstep)
    ngrid=active(ilevel)%ngrid ! How many active grid at level #ilevel on myid
 
    if(isf.eq.1) then
-      ! Loop over cells, with red/black ordering
+      ! chi-term; Loop over cells, with red/black ordering
       do ind0=1,twotondim      ! Only half of the cells for a red or black sweep
          if(redstep) then
             ind = ired  (ndim,ind0)
@@ -421,7 +421,7 @@ subroutine gauss_seidel_mg_fine_extradof(ilevel,isf,redstep)
 
          iskip_amr = ncoarse+(ind-1)*ngridmax
 
-         ! chi-term; Loop over active grids
+         ! Loop over active grids
          do igrid_mg=1,ngrid,nvector
             nbatch=MIN(nvector,ngrid-igrid_mg+1)
             do i=1,nbatch
@@ -444,23 +444,12 @@ subroutine gauss_seidel_mg_fine_extradof(ilevel,isf,redstep)
                   nb_sum_sfi(2) = sf(nbors_cells(i,11))+sf(nbors_cells(i,17))
                   nb_sum_sfi(3) = sf(nbors_cells(i, 5))+sf(nbors_cells(i,23))
 
-!                 nb_diff_sf_lpi(1)  = sf_lp(nbors_cells(i,13))-sf_lp(nbors_cells(i,15))
-!                 nb_diff_sf_lpi(2)  = sf_lp(nbors_cells(i,11))-sf_lp(nbors_cells(i,17))
-!                 nb_diff_sf_lpi(3)  = sf_lp(nbors_cells(i, 5))-sf_lp(nbors_cells(i,23))
-
                   nb_sum_sfij(1) = sf(nbors_cells(i,18))+sf(nbors_cells(i,10)) - &
                                  & sf(nbors_cells(i,12))-sf(nbors_cells(i,16)) ! sf_{,xy}
                   nb_sum_sfij(2) = sf(nbors_cells(i,24))+sf(nbors_cells(i, 4)) - &
                                  & sf(nbors_cells(i, 6))-sf(nbors_cells(i,22)) ! sf_{,xz}
                   nb_sum_sfij(3) = sf(nbors_cells(i,26))+sf(nbors_cells(i, 2)) - &
                                  & sf(nbors_cells(i, 8))-sf(nbors_cells(i,20)) ! sf_{,yz}
-
-!                 nb_sum_sf_lpij(1) = sf_lp(nbors_cells(i,18))+sf_lp(nbors_cells(i,10)) - &
-!                                   & sf_lp(nbors_cells(i,12))-sf_lp(nbors_cells(i,16)) ! sf_lp_{,xy}
-!                 nb_sum_sf_lpij(2) = sf_lp(nbors_cells(i,24))+sf_lp(nbors_cells(i, 4)) - &
-!                                   & sf_lp(nbors_cells(i, 6))-sf_lp(nbors_cells(i,22)) ! sf_lp_{,xz}
-!                 nb_sum_sf_lpij(3) = sf_lp(nbors_cells(i,26))+sf_lp(nbors_cells(i, 2)) - &
-!                                   & sf_lp(nbors_cells(i, 8))-sf_lp(nbors_cells(i,20)) ! sf_lp_{,yz}
 
                   eta =   1.0d0/3.0d0/dx2**2*nb_sum_sfi (1)*(2.0d0*nb_sum_sfi (1)-nb_sum_sfi(2)-nb_sum_sfi(3))   + &
                         & 1.0d0/3.0d0/dx2**2*nb_sum_sfi (2)*(2.0d0*nb_sum_sfi (2)-nb_sum_sfi(1)-nb_sum_sfi(3))   + &
@@ -472,6 +461,34 @@ subroutine gauss_seidel_mg_fine_extradof(ilevel,isf,redstep)
                   ! derived form Eq.(69)
                   eta = eta+1.5d0*(alpha_sf/beta_cvg)*omega_m*aexp*(rho(icell_amr(i))-rho_tot)
                   eta = alpha_sf**2+8.0d0/3.0d0*eta
+
+                  !ttngrid = active(ilevel)%ngrid
+                  !do ttind=1,twotondim  ! Loop over cells
+                  !   ttiskip = ncoarse + (ttind-1)*ngridmax
+                  !   iz = (ttind-1)/4
+                  !   iy = (ttind-1-4*iz)/2
+                  !   ix = ttind-1-4*iz-2*iy
+                  !   dx=0.5d0**ilevel
+                  !   if(ndim>0) xc(ttind,1) = (dble(ix)-0.5d0)*dx
+                  !   if(ndim>1) xc(ttind,2) = (dble(iy)-0.5d0)*dx
+                  !   if(ndim>2) xc(ttind,3) = (dble(iz)-0.5d0)*dx
+                  !   
+                  !   do tti=1,ttngrid  ! Loop over active grids
+                  !      ttigrid_amr = active(ilevel)%igrid(tti)
+                  !      tticell_amr = ttigrid_amr + ttiskip
+                  !      do idim=1,ndim    ! BH_test
+                  !         if (idim.eq.1)  xs = xg(ttigrid_amr,idim) + xc(ttind,idim)
+                  !         if (idim.eq.2)  ys = xg(ttigrid_amr,idim) + xc(ttind,idim)
+                  !         if (idim.eq.3)  zs = xg(ttigrid_amr,idim) + xc(ttind,idim)
+                  !      end do            ! BH_test
+                  !      if(zs>0.5D0 .and. zs<0.5D0+1.0D0/128.0D0 .and. &
+                  !         ys>0.5D0 .and. ys<0.5D0+1.0D0/128.0D0 .and. &
+                  !         xs>0.5D0 .and. xs<0.5D0+1.0D0/128.0D0) then
+                  !         write(*,'(A,8(F16.10,2x))') 'finefine ', aexp,xs,ys,zs,alpha_sf,rc_cvg,beta_cvg,eta
+                  !      end if
+                  !   end do ! Loop over grids
+                  !end do ! Loop over cells
+                  
 
                   if(eta<0.0d0) then
                      write(*,*) 'In gauss_seidel_mg_fine_extradof: imaginary square root!',eta
@@ -488,13 +505,17 @@ subroutine gauss_seidel_mg_fine_extradof(ilevel,isf,redstep)
                   if(alpha_sf>=0.0d0) then
                      ! derived form Eq.(69)
                      op = op-(0.75d0*(-alpha_sf+dsqrt(eta))-sf_src_mean)*dx2
+                     !op = op - 1.5d0*omega_m/beta_cvg*aexp*(rho(icell_amr(i))-rho_tot)*dx2
                      sf    (icell_amr(i)) = sf(icell_amr(i))-op/dop
                      sf_src(icell_amr(i)) = 0.75d0*(-alpha_sf+dsqrt(eta))
+                     !sf_src(icell_amr(i)) = 1.5d0*omega_m/beta_cvg*aexp*(rho(icell_amr(i))-rho_tot)*dx2
                   else
                      ! derived form Eq.(69)
                      op = op-(0.75d0*(-alpha_sf-dsqrt(eta))-sf_src_mean)*dx2
+                     !op = op - 1.5d0*omega_m/beta_cvg*aexp*(rho(icell_amr(i))-rho_tot)*dx2
                      sf    (icell_amr(i)) = sf(icell_amr(i))-op/dop
                      sf_src(icell_amr(i)) = 0.75d0*(-alpha_sf-dsqrt(eta))
+                     !sf_src(icell_amr(i)) = 1.5d0*omega_m/beta_cvg*aexp*(rho(icell_amr(i))-rho_tot)*dx2
                   end if
                end if
             end do
@@ -576,9 +597,8 @@ subroutine gauss_seidel_mg_fine_extradof(ilevel,isf,redstep)
                      bf_src4 = -nb_diff_sfi(2)*nb_sum_sf_lpij(1) &
                                -nb_diff_sfi(3)*nb_sum_sf_lpij(2) &
                                -nb_diff_sfi(1)*nb_sum_sf_lpi (1)
-                  endif
 
-                  if(isf.eq.3) then
+                  else if(isf.eq.3) then
                      bf_src1 = nb_sum_sfij(1)*nb_diff_sf_lpi(1) &
                              + nb_sum_sfij(3)*nb_diff_sf_lpi(3) &
                              + nb_sum_sfi (2)*nb_diff_sf_lpi(2)
@@ -587,9 +607,8 @@ subroutine gauss_seidel_mg_fine_extradof(ilevel,isf,redstep)
                      bf_src4 = -nb_diff_sfi(1)*nb_sum_sf_lpij(1) &
                                -nb_diff_sfi(3)*nb_sum_sf_lpij(3) &
                                -nb_diff_sfi(2)*nb_sum_sf_lpi (2)
-                  endif
 
-                  if(isf.eq.4) then
+                  else if(isf.eq.4) then
                      bf_src1 = nb_sum_sfij(2)*nb_diff_sf_lpi(1) &
                              + nb_sum_sfij(3)*nb_diff_sf_lpi(2) &
                              + nb_sum_sfi (3)*nb_diff_sf_lpi(3)
@@ -762,7 +781,7 @@ end subroutine restrict_extradof_fine_reverse_extradof
 ! density restriction (bottom-up)
 ! ------------------------------------------------------------------------
 
-subroutine restrict_density_fine_reverse_extradof(ifinelevel)
+subroutine restrict_density_fine_reverse_extradof(ifinelevel,isf)
 
    use amr_commons
    use poisson_commons
@@ -770,7 +789,7 @@ subroutine restrict_density_fine_reverse_extradof(ifinelevel)
    use extradof_parameters
 
    implicit none
-   integer, intent(in) :: ifinelevel
+   integer, intent(in) :: ifinelevel,isf
 
    integer :: ind_c_cell, ind_f_cell, cpu_amr
 
@@ -832,7 +851,11 @@ subroutine restrict_density_fine_reverse_extradof(ifinelevel)
          if(active_mg(cpu_amr,icoarselevel)%u(icell_c_mg,4)<=0d0) cycle
 
          ! Restriction to compute the rho value in the coarse cell
-         rho1=(sf_src(icell_f_amr)-sf_src_mean)/(dtwotondim-dble(n_masked(igrid_f_mg)))
+         if(isf.eq.1) then
+            rho1=(rho(icell_f_amr)-rho_tot)/(dtwotondim-dble(n_masked(igrid_f_mg)))
+         else
+            rho1=(sf_src(icell_f_amr)-sf_src_mean)/(dtwotondim-dble(n_masked(igrid_f_mg)))
+         end if
          active_mg(cpu_amr,icoarselevel)%u(icell_c_mg,6)=&
             active_mg(cpu_amr,icoarselevel)%u(icell_c_mg,6)+rho1
       end do
@@ -943,11 +966,11 @@ subroutine interpolate_and_correct_fine_extradof(ifinelevel,isf)
          ! Correct the extradof on the fine cells
          if(isf.eq.1) then
             do i=1,nbatch
-               sf (icell_amr(i)      )=sf (icell_amr(i)      )+corr(i)
+               sf(icell_amr(i)) = sf(icell_amr(i)) + corr(i)
             end do
          else
             do i=1,nbatch
-               cbf(icell_amr(i),isf-1)=cbf(icell_amr(i),isf-1)+corr(i)
+               cbf(icell_amr(i),isf-1) = cbf(icell_amr(i),isf-1) + corr(i)
             end do
          endif
       end do

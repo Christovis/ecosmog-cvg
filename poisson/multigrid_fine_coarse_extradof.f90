@@ -22,7 +22,7 @@
 ! ------------------------------------------------------------------------------
 ! Compute residual, and stores it into active_mg(myid,ilevel)%u(:,3)
 ! ------------------------------------------------------------------------------
-subroutine cmp_residual_mg_coarse_extradof(ilevel)
+subroutine cmp_residual_mg_coarse_extradof(ilevel,isf)
    ! On the coardse level we simplify by using interpolating amr-levels.
    ! Therefore this subroutine does not need to differentiate between the
    ! vector-components. (Meaning we can neglect isf)
@@ -34,9 +34,9 @@ subroutine cmp_residual_mg_coarse_extradof(ilevel)
 
    implicit none
 
-   integer, intent(in) :: ilevel
+   integer, intent(in) :: ilevel,isf
 
-   real(dp) :: dx2
+   real(dp) :: dx2,alpha_sf
    integer  :: ngrid
    integer  :: ind,igrid_mg,iskip_mg,iskip_amr
    real(dp) :: dtwondim = (twondim)
@@ -49,66 +49,167 @@ subroutine cmp_residual_mg_coarse_extradof(ilevel)
    integer  :: nbatch,i,j,ind2
    integer,  dimension(1:threetondim) :: jgrid_amr,jgrid_mg,jcell_mg,cpu_nbor_amr
 
+   alpha_sf = beta_cvg*aexp**4/rc_cvg
    dx2 = (0.5d0**ilevel)**2.0
 
    ngrid=active_mg(myid,ilevel)%ngrid
 
-   do ind=1,twotondim
-      iskip_mg  = (ind-1)*ngrid
-      iskip_amr = ncoarse+(ind-1)*ngridmax
+   if(isf.eq.1) then
+      do ind=1,twotondim
+         iskip_mg  = (ind-1)*ngrid
+         iskip_amr = ncoarse+(ind-1)*ngridmax
 
-      do igrid_mg=1,ngrid,nvector
-         nbatch=MIN(nvector,ngrid-igrid_mg+1)
-         do i=1,nbatch
-            igrid_amr(i) = active_mg(myid,ilevel)%igrid(i+igrid_mg-1)
-            icell_amr(i) = iskip_amr+igrid_amr(i)
-            icell_mg(i)  = iskip_mg+igrid_mg+i-1
-         end do
-         call get3cubefather(icell_amr,nbors_cells,nbors_grids,nbatch,ilevel)
-         do i=1,nbatch
-            sfc = active_mg(myid,ilevel)%u(icell_mg(i),1)
-            if(.not. btest(active_mg(myid,ilevel)%f(icell_mg(i),1),0)) then
-               do j=2,26,2
-                  ind2            = (nbors_cells(i,j)-ncoarse)/ngridmax+1
-                  jgrid_amr(j)    = nbors_cells(i,j)-ncoarse-(ind2-1)*ngridmax
-                  jgrid_mg(j)     = lookup_mg(jgrid_amr(j))
-                  cpu_nbor_amr(j) = cpu_map(father(jgrid_amr(j)))
-                  jcell_mg(j)     = jgrid_mg(j)+(ind2-1)*active_mg(cpu_nbor_amr(j),ilevel)%ngrid
-               end do
-               do j=11,17,2
-                  ind2            = (nbors_cells(i,j)-ncoarse)/ngridmax+1
-                  jgrid_amr(j)    = nbors_cells(i,j)-ncoarse-(ind2-1)*ngridmax
-                  jgrid_mg(j)     = lookup_mg(jgrid_amr(j))
-                  cpu_nbor_amr(j) = cpu_map(father(jgrid_amr(j)))
-                  jcell_mg(j)     = jgrid_mg(j)+(ind2-1)*active_mg(cpu_nbor_amr(j),ilevel)%ngrid
-               end do
-               do j=5,23,18
-                  ind2            = (nbors_cells(i,j)-ncoarse)/ngridmax+1
-                  jgrid_amr(j)    = nbors_cells(i,j)-ncoarse-(ind2-1)*ngridmax
-                  jgrid_mg(j)     = lookup_mg(jgrid_amr(j))
-                  cpu_nbor_amr(j) = cpu_map(father(jgrid_amr(j)))
-                  jcell_mg(j)     = jgrid_mg(j)+(ind2-1)*active_mg(cpu_nbor_amr(j),ilevel)%ngrid
-               end do
+         do igrid_mg=1,ngrid,nvector
+            nbatch=MIN(nvector,ngrid-igrid_mg+1)
+            do i=1,nbatch
+               igrid_amr(i) = active_mg(myid,ilevel)%igrid(i+igrid_mg-1)
+               icell_amr(i) = iskip_amr+igrid_amr(i)
+               icell_mg(i)  = iskip_mg+igrid_mg+i-1
+            end do
+            call get3cubefather(icell_amr,nbors_cells,nbors_grids,nbatch,ilevel)
+            do i=1,nbatch
+               sfc = active_mg(myid,ilevel)%u(icell_mg(i),1)
+               if(.not. btest(active_mg(myid,ilevel)%f(icell_mg(i),1),0)) then
+                  do j=2,26,2
+                     ind2            = (nbors_cells(i,j)-ncoarse)/ngridmax+1
+                     jgrid_amr(j)    = nbors_cells(i,j)-ncoarse-(ind2-1)*ngridmax
+                     jgrid_mg(j)     = lookup_mg(jgrid_amr(j))
+                     cpu_nbor_amr(j) = cpu_map(father(jgrid_amr(j)))
+                     jcell_mg(j)     = jgrid_mg(j)+(ind2-1)*active_mg(cpu_nbor_amr(j),ilevel)%ngrid
+                  end do
+                  do j=11,17,2
+                     ind2            = (nbors_cells(i,j)-ncoarse)/ngridmax+1
+                     jgrid_amr(j)    = nbors_cells(i,j)-ncoarse-(ind2-1)*ngridmax
+                     jgrid_mg(j)     = lookup_mg(jgrid_amr(j))
+                     cpu_nbor_amr(j) = cpu_map(father(jgrid_amr(j)))
+                     jcell_mg(j)     = jgrid_mg(j)+(ind2-1)*active_mg(cpu_nbor_amr(j),ilevel)%ngrid
+                  end do
+                  do j=5,23,18
+                     ind2            = (nbors_cells(i,j)-ncoarse)/ngridmax+1
+                     jgrid_amr(j)    = nbors_cells(i,j)-ncoarse-(ind2-1)*ngridmax
+                     jgrid_mg(j)     = lookup_mg(jgrid_amr(j))
+                     cpu_nbor_amr(j) = cpu_map(father(jgrid_amr(j)))
+                     jcell_mg(j)     = jgrid_mg(j)+(ind2-1)*active_mg(cpu_nbor_amr(j),ilevel)%ngrid
+                  end do
 
-               nb_sum_sfi(1) = active_mg(cpu_nbor_amr(13),ilevel)%u(jcell_mg(13),1) + &
-                             & active_mg(cpu_nbor_amr(15),ilevel)%u(jcell_mg(15),1)
-               nb_sum_sfi(2) = active_mg(cpu_nbor_amr(11),ilevel)%u(jcell_mg(11),1) + &
-                             & active_mg(cpu_nbor_amr(17),ilevel)%u(jcell_mg(17),1)
-               nb_sum_sfi(3) = active_mg(cpu_nbor_amr(5 ),ilevel)%u(jcell_mg(5 ),1) + &
-                             & active_mg(cpu_nbor_amr(23),ilevel)%u(jcell_mg(23),1)
+                  nb_sum_sfi(1) = active_mg(cpu_nbor_amr(13),ilevel)%u(jcell_mg(13),1) + &
+                                & active_mg(cpu_nbor_amr(15),ilevel)%u(jcell_mg(15),1)
+                  nb_sum_sfi(2) = active_mg(cpu_nbor_amr(11),ilevel)%u(jcell_mg(11),1) + &
+                                & active_mg(cpu_nbor_amr(17),ilevel)%u(jcell_mg(17),1)
+                  nb_sum_sfi(3) = active_mg(cpu_nbor_amr(5 ),ilevel)%u(jcell_mg(5 ),1) + &
+                                & active_mg(cpu_nbor_amr(23),ilevel)%u(jcell_mg(23),1)
 
-               ! op = lhs - rhs of scalar field Poission (Eq. 59)
-               op  = nb_sum_sfi(1)+nb_sum_sfi(2)+nb_sum_sfi(3)-6.0d0*sfc &
-                 - active_mg(myid,ilevel)%u(icell_mg(i),6)*dx2 &
-                 - active_mg(myid,ilevel)%u(icell_mg(i),2)*dx2
+                  ! op = lhs - rhs of scalar field Poission (Eq. 59)
+                  op  = nb_sum_sfi(1)+nb_sum_sfi(2)+nb_sum_sfi(3)-6.0d0*sfc
+       
+                  nb_sum_sfj(1) = active_mg(cpu_nbor_amr(2 ),ilevel)%u(jcell_mg(2 ),1) + &
+                                & active_mg(cpu_nbor_amr(26),ilevel)%u(jcell_mg(26),1) - &
+                                & active_mg(cpu_nbor_amr(8 ),ilevel)%u(jcell_mg(8 ),1) - &
+                                & active_mg(cpu_nbor_amr(20),ilevel)%u(jcell_mg(20),1) 
+                  nb_sum_sfj(2) = active_mg(cpu_nbor_amr(4 ),ilevel)%u(jcell_mg(4 ),1) + &
+                                & active_mg(cpu_nbor_amr(24),ilevel)%u(jcell_mg(24),1) - &
+                                & active_mg(cpu_nbor_amr(6 ),ilevel)%u(jcell_mg(6 ),1) - &
+                                & active_mg(cpu_nbor_amr(22),ilevel)%u(jcell_mg(22),1) 
+                  nb_sum_sfj(3) = active_mg(cpu_nbor_amr(10),ilevel)%u(jcell_mg(10),1) + &
+                                & active_mg(cpu_nbor_amr(18),ilevel)%u(jcell_mg(18),1) - &
+                                & active_mg(cpu_nbor_amr(12),ilevel)%u(jcell_mg(12),1) - &
+                                & active_mg(cpu_nbor_amr(16),ilevel)%u(jcell_mg(16),1)
+                  eta = 2.0d0/(3.0d0*dx2**2) *((nb_sum_sfi(1)-2.0*sfc)**2 +  &
+                      &                       (nb_sum_sfi(2)-2.0*sfc)**2 +  &
+                      &                       (nb_sum_sfi(3)-2.0*sfc)**2) - &
+                      & 2.0d0/(3.0d0*dx2**2) *(nb_sum_sfi(1)-2.0*sfc)*  &
+                      &                       (nb_sum_sfi(2)-2.0*sfc) - &
+                      & 2.0d0/(3.0d0*dx2**2) *(nb_sum_sfi(1)-2.0*sfc)*  &
+                      &                       (nb_sum_sfi(3)-2.0*sfc) - &
+                      & 2.0d0/(3.0d0*dx2**2) *(nb_sum_sfi(2)-2.0*sfc)*  &
+                      &                       (nb_sum_sfi(3)-2.0*sfc) + &
+                      &       0.125d0/dx2**2 *(nb_sum_sfj(1)**2 + &
+                      &                        nb_sum_sfj(2)**2 + &
+                      &                        nb_sum_sfj(3)**2)
 
-            else
-               op = 0.0d0
-            end if
-            active_mg(myid,ilevel)%u(icell_mg(i),3) = -op/dx2
+                  eta = eta+1.5d0*alpha_sf/beta_cvg*omega_m*aexp*active_mg(myid,ilevel)%u(icell_mg(i),6)
+                  eta = eta*8.0d0/3.0d0 + alpha_sf**2
+
+                  if(eta<0.0d0) then
+                     write(*,*) 'imaginary square root!'
+                     stop
+                  end if
+                  if (eta.eq.0.0d0) then
+                     eta = 1.0d-9
+                  end if
+                  if(alpha_sf>=0.d0) then
+                     op  = op - (0.75d0*(-alpha_sf+sqrt(eta)) - sf_src_mean)*dx2 - &
+                         & active_mg(myid,ilevel)%u(icell_mg(i),2)*dx2
+                  else
+                     op  = op - (0.75d0*(-alpha_sf-sqrt(eta)) - sf_src_mean)*dx2 - &
+                         & active_mg(myid,ilevel)%u(icell_mg(i),2)*dx2
+                  end if
+
+               else
+                  op = 0.0d0
+               end if
+               active_mg(myid,ilevel)%u(icell_mg(i),3) = -op/dx2
+            end do
          end do
       end do
-   end do
+   else
+      do ind=1,twotondim
+         iskip_mg  = (ind-1)*ngrid
+         iskip_amr = ncoarse+(ind-1)*ngridmax
+   
+         do igrid_mg=1,ngrid,nvector
+            nbatch=MIN(nvector,ngrid-igrid_mg+1)
+            do i=1,nbatch
+               igrid_amr(i) = active_mg(myid,ilevel)%igrid(i+igrid_mg-1)
+               icell_amr(i) = iskip_amr+igrid_amr(i)
+               icell_mg(i)  = iskip_mg+igrid_mg+i-1
+            end do
+            call get3cubefather(icell_amr,nbors_cells,nbors_grids,nbatch,ilevel)
+            do i=1,nbatch
+               sfc = active_mg(myid,ilevel)%u(icell_mg(i),1)
+               if(.not. btest(active_mg(myid,ilevel)%f(icell_mg(i),1),0)) then
+                  do j=2,26,2
+                     ind2            = (nbors_cells(i,j)-ncoarse)/ngridmax+1
+                     jgrid_amr(j)    = nbors_cells(i,j)-ncoarse-(ind2-1)*ngridmax
+                     jgrid_mg(j)     = lookup_mg(jgrid_amr(j))
+                     cpu_nbor_amr(j) = cpu_map(father(jgrid_amr(j)))
+                     jcell_mg(j)     = jgrid_mg(j)+(ind2-1)*active_mg(cpu_nbor_amr(j),ilevel)%ngrid
+                  end do
+                  do j=11,17,2
+                     ind2            = (nbors_cells(i,j)-ncoarse)/ngridmax+1
+                     jgrid_amr(j)    = nbors_cells(i,j)-ncoarse-(ind2-1)*ngridmax
+                     jgrid_mg(j)     = lookup_mg(jgrid_amr(j))
+                     cpu_nbor_amr(j) = cpu_map(father(jgrid_amr(j)))
+                     jcell_mg(j)     = jgrid_mg(j)+(ind2-1)*active_mg(cpu_nbor_amr(j),ilevel)%ngrid
+                  end do
+                  do j=5,23,18
+                     ind2            = (nbors_cells(i,j)-ncoarse)/ngridmax+1
+                     jgrid_amr(j)    = nbors_cells(i,j)-ncoarse-(ind2-1)*ngridmax
+                     jgrid_mg(j)     = lookup_mg(jgrid_amr(j))
+                     cpu_nbor_amr(j) = cpu_map(father(jgrid_amr(j)))
+                     jcell_mg(j)     = jgrid_mg(j)+(ind2-1)*active_mg(cpu_nbor_amr(j),ilevel)%ngrid
+                  end do
+   
+                  nb_sum_sfi(1) = active_mg(cpu_nbor_amr(13),ilevel)%u(jcell_mg(13),1) + &
+                                & active_mg(cpu_nbor_amr(15),ilevel)%u(jcell_mg(15),1)
+                  nb_sum_sfi(2) = active_mg(cpu_nbor_amr(11),ilevel)%u(jcell_mg(11),1) + &
+                                & active_mg(cpu_nbor_amr(17),ilevel)%u(jcell_mg(17),1)
+                  nb_sum_sfi(3) = active_mg(cpu_nbor_amr(5 ),ilevel)%u(jcell_mg(5 ),1) + &
+                                & active_mg(cpu_nbor_amr(23),ilevel)%u(jcell_mg(23),1)
+   
+                  ! op = lhs - rhs of scalar field Poission (Eq. 59)
+                  op  = nb_sum_sfi(1)+nb_sum_sfi(2)+nb_sum_sfi(3)-6.0d0*sfc &
+                    - active_mg(myid,ilevel)%u(icell_mg(i),6)*dx2 &
+                    - active_mg(myid,ilevel)%u(icell_mg(i),2)*dx2
+   
+               else
+                  op = 0.0d0
+               end if
+               active_mg(myid,ilevel)%u(icell_mg(i),3) = -op/dx2
+            end do
+         end do
+      end do
+   end if
 
 end subroutine cmp_residual_mg_coarse_extradof
 
@@ -187,7 +288,7 @@ end subroutine cmp_fvar_norm2_coarse_extradof
 ! ------------------------------------------------------------------------------
 ! Gauss-Seidel smoothing
 ! ------------------------------------------------------------------------------
-subroutine gauss_seidel_mg_coarse_extradof(ilevel,safe,redstep)
+subroutine gauss_seidel_mg_coarse_extradof(ilevel,isf,safe,redstep)
    ! On the coardse level we simplify by using interpolating amr-levels.
    ! Therefore this subroutine does not need to differentiate between the
    ! vector-components. (Meaning we can neglect isf)
@@ -200,12 +301,12 @@ subroutine gauss_seidel_mg_coarse_extradof(ilevel,safe,redstep)
 
    implicit none
 
-   integer, intent(in) :: ilevel
+   integer, intent(in) :: ilevel,isf
    logical, intent(in) :: safe
    logical, intent(in) :: redstep
    integer, dimension(1:3,1:4)     :: ired,iblack
 
-   real(dp) :: dx2
+   real(dp) :: dx2,alpha_sf
    integer  :: ngrid
    integer  :: ind, ind0,igrid_mg
    integer  :: iskip_mg,iskip_amr
@@ -221,6 +322,7 @@ subroutine gauss_seidel_mg_coarse_extradof(ilevel,safe,redstep)
    integer  :: nbatch,i,j,ind2
    integer,  dimension(1:threetondim) :: jgrid_amr,jgrid_mg,jcell_mg,cpu_nbor_amr
 
+   alpha_sf = beta_cvg*aexp**4/rc_cvg
    ! Set constants
    dx2    = (0.5d0**ilevel)**2
 
@@ -232,70 +334,179 @@ subroutine gauss_seidel_mg_coarse_extradof(ilevel,safe,redstep)
    iblack(3,1:4)=(/2,3,5,8/)
 
    ngrid=active_mg(myid,ilevel)%ngrid
-   ! Loop over cells, with red/black ordering
-   do ind0=1,twotondim/2      ! Only half of the cells for a red or black sweep
-      if(redstep) then
-         ind = ired  (ndim,ind0)
-      else
-         ind = iblack(ndim,ind0)
-      end if
+   if(isf.eq.1) then
+      ! Loop over cells, with red/black ordering
+      do ind0=1,twotondim/2      ! Only half of the cells for a red or black sweep
+         if(redstep) then
+            ind = ired  (ndim,ind0)
+         else
+            ind = iblack(ndim,ind0)
+         end if
 
-      iskip_mg  = (ind-1)*ngrid
-      iskip_amr = ncoarse+(ind-1)*ngridmax
+         iskip_mg  = (ind-1)*ngrid
+         iskip_amr = ncoarse+(ind-1)*ngridmax
 
-      do igrid_mg=1,ngrid,nvector
-         nbatch=MIN(nvector,ngrid-igrid_mg+1)
-         do i=1,nbatch
-            igrid_amr(i) = active_mg(myid,ilevel)%igrid(i+igrid_mg-1)
-            icell_amr(i) = iskip_amr+igrid_amr(i)
-            icell_mg(i)  = iskip_mg+igrid_mg+i-1
-         end do
-         call get3cubefather(icell_amr,nbors_cells,nbors_grids,nbatch,ilevel)
-         do i=1,nbatch
-            sfc = active_mg(myid,ilevel)%u(icell_mg(i),1)
-            if(.not. btest(active_mg(myid,ilevel)%f(icell_mg(i),1),0)) then
-               do j=2,26,2
-                  ind2            = (nbors_cells(i,j)-ncoarse)/ngridmax+1
-                  jgrid_amr(j)    = nbors_cells(i,j)-ncoarse-(ind2-1)*ngridmax
-                  jgrid_mg(j)     = lookup_mg(jgrid_amr(j))
-                  cpu_nbor_amr(j) = cpu_map(father(jgrid_amr(j)))
-                  jcell_mg(j)     = jgrid_mg(j)+(ind2-1)*active_mg(cpu_nbor_amr(j),ilevel)%ngrid
-                  if(j.eq.14 .and. (icell_mg(i).ne.jcell_mg(j))) then
-                     write(*,*) icell_mg(i),jcell_mg(j),jgrid_mg(j),igrid_mg
+         do igrid_mg=1,ngrid,nvector
+            nbatch=MIN(nvector,ngrid-igrid_mg+1)
+            do i=1,nbatch
+               igrid_amr(i) = active_mg(myid,ilevel)%igrid(i+igrid_mg-1)
+               icell_amr(i) = iskip_amr+igrid_amr(i)
+               icell_mg(i)  = iskip_mg+igrid_mg+i-1
+            end do
+            call get3cubefather(icell_amr,nbors_cells,nbors_grids,nbatch,ilevel)
+            do i=1,nbatch
+               sfc = active_mg(myid,ilevel)%u(icell_mg(i),1)
+               if(.not. btest(active_mg(myid,ilevel)%f(icell_mg(i),1),0)) then
+                  do j=2,26,2
+                     ind2            = (nbors_cells(i,j)-ncoarse)/ngridmax+1
+                     jgrid_amr(j)    = nbors_cells(i,j)-ncoarse-(ind2-1)*ngridmax
+                     jgrid_mg(j)     = lookup_mg(jgrid_amr(j))
+                     cpu_nbor_amr(j) = cpu_map(father(jgrid_amr(j)))
+                     jcell_mg(j)     = jgrid_mg(j)+(ind2-1)*active_mg(cpu_nbor_amr(j),ilevel)%ngrid
+                     if(j.eq.14 .and. (icell_mg(i).ne.jcell_mg(j))) then
+                        write(*,*) icell_mg(i),jcell_mg(j),jgrid_mg(j),igrid_mg
+                        stop
+                     end if
+                  end do
+                  do j=11,17,2
+                     ind2            = (nbors_cells(i,j)-ncoarse)/ngridmax+1
+                     jgrid_amr(j)    = nbors_cells(i,j)-ncoarse-(ind2-1)*ngridmax
+                     jgrid_mg(j)     = lookup_mg(jgrid_amr(j))
+                     cpu_nbor_amr(j) = cpu_map(father(jgrid_amr(j)))
+                     jcell_mg(j)     = jgrid_mg(j)+(ind2-1)*active_mg(cpu_nbor_amr(j),ilevel)%ngrid
+                  end do
+                  do j=5,23,18
+                     ind2            = (nbors_cells(i,j)-ncoarse)/ngridmax+1
+                     jgrid_amr(j)    = nbors_cells(i,j)-ncoarse-(ind2-1)*ngridmax
+                     jgrid_mg(j)     = lookup_mg(jgrid_amr(j))
+                     cpu_nbor_amr(j) = cpu_map(father(jgrid_amr(j)))
+                     jcell_mg(j)     = jgrid_mg(j)+(ind2-1)*active_mg(cpu_nbor_amr(j),ilevel)%ngrid
+                  end do
+                  nb_sum_sfi(1) = active_mg(cpu_nbor_amr(13),ilevel)%u(jcell_mg(13),1) + &
+                                & active_mg(cpu_nbor_amr(15),ilevel)%u(jcell_mg(15),1)
+                  nb_sum_sfi(2) = active_mg(cpu_nbor_amr(11),ilevel)%u(jcell_mg(11),1) + &
+                                & active_mg(cpu_nbor_amr(17),ilevel)%u(jcell_mg(17),1)
+                  nb_sum_sfi(3) = active_mg(cpu_nbor_amr(5 ),ilevel)%u(jcell_mg(5 ),1) + &
+                                & active_mg(cpu_nbor_amr(23),ilevel)%u(jcell_mg(23),1)
+
+                  op  = nb_sum_sfi(1)+nb_sum_sfi(2)+nb_sum_sfi(3)-6.0d0*sfc
+       
+                  nb_sum_sfj(1) = active_mg(cpu_nbor_amr(2 ),ilevel)%u(jcell_mg(2 ),1) + &
+                                & active_mg(cpu_nbor_amr(26),ilevel)%u(jcell_mg(26),1) - &
+                                & active_mg(cpu_nbor_amr(8 ),ilevel)%u(jcell_mg(8 ),1) - &
+                                & active_mg(cpu_nbor_amr(20),ilevel)%u(jcell_mg(20),1) 
+                  nb_sum_sfj(2) = active_mg(cpu_nbor_amr(4 ),ilevel)%u(jcell_mg(4 ),1) + &
+                                & active_mg(cpu_nbor_amr(24),ilevel)%u(jcell_mg(24),1) - &
+                                & active_mg(cpu_nbor_amr(6 ),ilevel)%u(jcell_mg(6 ),1) - &
+                                & active_mg(cpu_nbor_amr(22),ilevel)%u(jcell_mg(22),1) 
+                  nb_sum_sfj(3) = active_mg(cpu_nbor_amr(10),ilevel)%u(jcell_mg(10),1) + &
+                                & active_mg(cpu_nbor_amr(18),ilevel)%u(jcell_mg(18),1) - &
+                                & active_mg(cpu_nbor_amr(12),ilevel)%u(jcell_mg(12),1) - &
+                                & active_mg(cpu_nbor_amr(16),ilevel)%u(jcell_mg(16),1)
+                  eta = 2.0d0/(3.0d0*dx2**2) *((nb_sum_sfi(1)-2.0*sfc)**2 +  &
+                      &                       (nb_sum_sfi(2)-2.0*sfc)**2 +  &
+                      &                       (nb_sum_sfi(3)-2.0*sfc)**2) - &
+                      & 2.0d0/(3.0d0*dx2**2) *(nb_sum_sfi(1)-2.0*sfc)*  &
+                      &                       (nb_sum_sfi(2)-2.0*sfc) - &
+                      & 2.0d0/(3.0d0*dx2**2) *(nb_sum_sfi(1)-2.0*sfc)*  &
+                      &                       (nb_sum_sfi(3)-2.0*sfc) - &
+                      & 2.0d0/(3.0d0*dx2**2) *(nb_sum_sfi(2)-2.0*sfc)*  &
+                      &                       (nb_sum_sfi(3)-2.0*sfc) + &
+                      &       0.125d0/dx2**2 *(nb_sum_sfj(1)**2 + &
+                      &                        nb_sum_sfj(2)**2 + &
+                      &                        nb_sum_sfj(3)**2)
+
+                  eta = eta+1.5d0*alpha_sf/beta_cvg*omega_m*aexp*active_mg(myid,ilevel)%u(icell_mg(i),6)
+                  eta = eta*8.0d0/3.0d0 + alpha_sf**2
+
+                  if(eta<0.0d0) then
+                     write(*,*) 'imaginary square root!'
                      stop
                   end if
-               end do
-               do j=11,17,2
-                  ind2            = (nbors_cells(i,j)-ncoarse)/ngridmax+1
-                  jgrid_amr(j)    = nbors_cells(i,j)-ncoarse-(ind2-1)*ngridmax
-                  jgrid_mg(j)     = lookup_mg(jgrid_amr(j))
-                  cpu_nbor_amr(j) = cpu_map(father(jgrid_amr(j)))
-                  jcell_mg(j)     = jgrid_mg(j)+(ind2-1)*active_mg(cpu_nbor_amr(j),ilevel)%ngrid
-               end do
-               do j=5,23,18
-                  ind2            = (nbors_cells(i,j)-ncoarse)/ngridmax+1
-                  jgrid_amr(j)    = nbors_cells(i,j)-ncoarse-(ind2-1)*ngridmax
-                  jgrid_mg(j)     = lookup_mg(jgrid_amr(j))
-                  cpu_nbor_amr(j) = cpu_map(father(jgrid_amr(j)))
-                  jcell_mg(j)     = jgrid_mg(j)+(ind2-1)*active_mg(cpu_nbor_amr(j),ilevel)%ngrid
-               end do
-               nb_sum_sfi(1) = active_mg(cpu_nbor_amr(13),ilevel)%u(jcell_mg(13),1) + &
-                             & active_mg(cpu_nbor_amr(15),ilevel)%u(jcell_mg(15),1)
-               nb_sum_sfi(2) = active_mg(cpu_nbor_amr(11),ilevel)%u(jcell_mg(11),1) + &
-                             & active_mg(cpu_nbor_amr(17),ilevel)%u(jcell_mg(17),1)
-               nb_sum_sfi(3) = active_mg(cpu_nbor_amr(5 ),ilevel)%u(jcell_mg(5 ),1) + &
-                             & active_mg(cpu_nbor_amr(23),ilevel)%u(jcell_mg(23),1)
+                  if (eta.eq.0.0d0) then
+                     eta = 1.0d-9
+                  end if
+                  if(alpha_sf>=0.d0) then
+                     op  = op - (0.75d0*(-alpha_sf+sqrt(eta)) - sf_src_mean)*dx2 - &
+                         & active_mg(myid,ilevel)%u(icell_mg(i),2)*dx2
+                     dop = -6.0
+                  else
+                     op  = op - (0.75d0*(-alpha_sf-sqrt(eta)) - sf_src_mean)*dx2 - &
+                         & active_mg(myid,ilevel)%u(icell_mg(i),2)*dx2
+                     dop = -6.0d0
+                  end if
 
-               op  = nb_sum_sfi(1)+nb_sum_sfi(2)+nb_sum_sfi(3)-6.0d0*sfc &
-                 - active_mg(myid,ilevel)%u(icell_mg(i),6)*dx2 &
-                 - active_mg(myid,ilevel)%u(icell_mg(i),2)*dx2
-               dop = -6.0d0
-
-               active_mg(myid,ilevel)%u(icell_mg(i),1) = active_mg(myid,ilevel)%u(icell_mg(i),1)-op/dop
-            end if
+                  active_mg(myid,ilevel)%u(icell_mg(i),1) = active_mg(myid,ilevel)%u(icell_mg(i),1)-op/dop
+               end if
+            end do
          end do
       end do
-   end do
+   else
+      ! Loop over cells, with red/black ordering
+      do ind0=1,twotondim/2      ! Only half of the cells for a red or black sweep
+         if(redstep) then
+            ind = ired  (ndim,ind0)
+         else
+            ind = iblack(ndim,ind0)
+         end if
+   
+         iskip_mg  = (ind-1)*ngrid
+         iskip_amr = ncoarse+(ind-1)*ngridmax
+   
+         do igrid_mg=1,ngrid,nvector
+            nbatch=MIN(nvector,ngrid-igrid_mg+1)
+            do i=1,nbatch
+               igrid_amr(i) = active_mg(myid,ilevel)%igrid(i+igrid_mg-1)
+               icell_amr(i) = iskip_amr+igrid_amr(i)
+               icell_mg(i)  = iskip_mg+igrid_mg+i-1
+            end do
+            call get3cubefather(icell_amr,nbors_cells,nbors_grids,nbatch,ilevel)
+            do i=1,nbatch
+               sfc = active_mg(myid,ilevel)%u(icell_mg(i),1)
+               if(.not. btest(active_mg(myid,ilevel)%f(icell_mg(i),1),0)) then
+                  do j=2,26,2
+                     ind2            = (nbors_cells(i,j)-ncoarse)/ngridmax+1
+                     jgrid_amr(j)    = nbors_cells(i,j)-ncoarse-(ind2-1)*ngridmax
+                     jgrid_mg(j)     = lookup_mg(jgrid_amr(j))
+                     cpu_nbor_amr(j) = cpu_map(father(jgrid_amr(j)))
+                     jcell_mg(j)     = jgrid_mg(j)+(ind2-1)*active_mg(cpu_nbor_amr(j),ilevel)%ngrid
+                     if(j.eq.14 .and. (icell_mg(i).ne.jcell_mg(j))) then
+                        write(*,*) icell_mg(i),jcell_mg(j),jgrid_mg(j),igrid_mg
+                        stop
+                     end if
+                  end do
+                  do j=11,17,2
+                     ind2            = (nbors_cells(i,j)-ncoarse)/ngridmax+1
+                     jgrid_amr(j)    = nbors_cells(i,j)-ncoarse-(ind2-1)*ngridmax
+                     jgrid_mg(j)     = lookup_mg(jgrid_amr(j))
+                     cpu_nbor_amr(j) = cpu_map(father(jgrid_amr(j)))
+                     jcell_mg(j)     = jgrid_mg(j)+(ind2-1)*active_mg(cpu_nbor_amr(j),ilevel)%ngrid
+                  end do
+                  do j=5,23,18
+                     ind2            = (nbors_cells(i,j)-ncoarse)/ngridmax+1
+                     jgrid_amr(j)    = nbors_cells(i,j)-ncoarse-(ind2-1)*ngridmax
+                     jgrid_mg(j)     = lookup_mg(jgrid_amr(j))
+                     cpu_nbor_amr(j) = cpu_map(father(jgrid_amr(j)))
+                     jcell_mg(j)     = jgrid_mg(j)+(ind2-1)*active_mg(cpu_nbor_amr(j),ilevel)%ngrid
+                  end do
+                  nb_sum_sfi(1) = active_mg(cpu_nbor_amr(13),ilevel)%u(jcell_mg(13),1) + &
+                                & active_mg(cpu_nbor_amr(15),ilevel)%u(jcell_mg(15),1)
+                  nb_sum_sfi(2) = active_mg(cpu_nbor_amr(11),ilevel)%u(jcell_mg(11),1) + &
+                                & active_mg(cpu_nbor_amr(17),ilevel)%u(jcell_mg(17),1)
+                  nb_sum_sfi(3) = active_mg(cpu_nbor_amr(5 ),ilevel)%u(jcell_mg(5 ),1) + &
+                                & active_mg(cpu_nbor_amr(23),ilevel)%u(jcell_mg(23),1)
+   
+                  op  = nb_sum_sfi(1)+nb_sum_sfi(2)+nb_sum_sfi(3)-6.0d0*sfc &
+                    - active_mg(myid,ilevel)%u(icell_mg(i),6)*dx2 &
+                    - active_mg(myid,ilevel)%u(icell_mg(i),2)*dx2
+                  dop = -6.0d0
+   
+                  active_mg(myid,ilevel)%u(icell_mg(i),1) = active_mg(myid,ilevel)%u(icell_mg(i),1)-op/dop
+               end if
+            end do
+         end do
+      end do
+   end if
 
 end subroutine gauss_seidel_mg_coarse_extradof
 
@@ -304,7 +515,7 @@ end subroutine gauss_seidel_mg_coarse_extradof
 ! from the finer level, such as the residual etc.
 ! The physical rhs is stored in active_mg(myid,ilevel)%u(:,2)
 ! ------------------------------------------------------------------------------
-subroutine make_physical_rhs_coarse_extradof(ilevel)
+subroutine make_physical_rhs_coarse_extradof(ilevel,isf)
 
    use amr_commons
    use pm_commons
@@ -314,9 +525,9 @@ subroutine make_physical_rhs_coarse_extradof(ilevel)
 
    implicit none
 
-   integer, intent(in) :: ilevel
+   integer, intent(in) :: ilevel,isf
 
-   real(dp) :: dx2
+   real(dp) :: dx2,alpha_sf,eta
    integer  :: ngrid
    integer  :: ind,igrid_mg
    integer  :: iskip_mg,iskip_amr
@@ -331,68 +542,165 @@ subroutine make_physical_rhs_coarse_extradof(ilevel)
    integer,  dimension(1:threetondim) :: jgrid_amr,jgrid_mg,jcell_mg,cpu_nbor_amr
 
    ! Set constants
+   alpha_sf = beta_cvg*aexp**4/rc_cvg
    dx2    = (0.5d0**ilevel)**2
 
    ngrid=active_mg(myid,ilevel)%ngrid
 
-   ! Loop over cells
-   do ind=1,twotondim
-      iskip_mg  = (ind-1)*ngrid
-      iskip_amr = (ind-1)*ngridmax+ncoarse
+   if(isf.eq.1) then
+      ! Loop over cells
+      do ind=1,twotondim
+         iskip_mg  = (ind-1)*ngrid
+         iskip_amr = (ind-1)*ngridmax+ncoarse
 
-      ! Loop over active grids
-      do igrid_mg=1,ngrid,nvector
-         nbatch=MIN(nvector,ngrid-igrid_mg+1)
-         do i=1,nbatch
-            igrid_amr(i) = active_mg(myid,ilevel)%igrid(i+igrid_mg-1)
-            icell_amr(i) = iskip_amr+igrid_amr(i)
-            icell_mg(i)  = iskip_mg+igrid_mg+i-1
-         end do
-         call get3cubefather(icell_amr,nbors_cells,nbors_grids,nbatch,ilevel)
-         do i=1,nbatch
-            sfc = active_mg(myid,ilevel)%u(icell_mg(i),5)
-            if(.not. btest(active_mg(myid,ilevel)%f(icell_mg(i),1),0)) then
-               do j=2,26,2
-                  ind2            = (nbors_cells(i,j)-ncoarse)/ngridmax+1
-                  jgrid_amr(j)    = nbors_cells(i,j)-ncoarse-(ind2-1)*ngridmax
-                  jgrid_mg(j)     = lookup_mg(jgrid_amr(j))
-                  cpu_nbor_amr(j) = cpu_map(father(jgrid_amr(j)))
-                  jcell_mg(j)     = jgrid_mg(j)+(ind2-1)*active_mg(cpu_nbor_amr(j),ilevel)%ngrid
-               end do
-               do j=11,17,2
-                  ind2            = (nbors_cells(i,j)-ncoarse)/ngridmax+1
-                  jgrid_amr(j)    = nbors_cells(i,j)-ncoarse-(ind2-1)*ngridmax
-                  jgrid_mg(j)     = lookup_mg(jgrid_amr(j))
-                  cpu_nbor_amr(j) = cpu_map(father(jgrid_amr(j)))
-                  jcell_mg(j)     = jgrid_mg(j)+(ind2-1)*active_mg(cpu_nbor_amr(j),ilevel)%ngrid
-               end do
-               do j=5,23,18
-                  ind2            = (nbors_cells(i,j)-ncoarse)/ngridmax+1
-                  jgrid_amr(j)    = nbors_cells(i,j)-ncoarse-(ind2-1)*ngridmax
-                  jgrid_mg(j)     = lookup_mg(jgrid_amr(j))
-                  cpu_nbor_amr(j) = cpu_map(father(jgrid_amr(j)))
-                  jcell_mg(j)     = jgrid_mg(j)+(ind2-1)*active_mg(cpu_nbor_amr(j),ilevel)%ngrid
-               end do
+         ! Loop over active grids
+         do igrid_mg=1,ngrid,nvector
+            nbatch=MIN(nvector,ngrid-igrid_mg+1)
+            do i=1,nbatch
+               igrid_amr(i) = active_mg(myid,ilevel)%igrid(i+igrid_mg-1)
+               icell_amr(i) = iskip_amr+igrid_amr(i)
+               icell_mg(i)  = iskip_mg+igrid_mg+i-1
+            end do
+            call get3cubefather(icell_amr,nbors_cells,nbors_grids,nbatch,ilevel)
+            do i=1,nbatch
+               sfc = active_mg(myid,ilevel)%u(icell_mg(i),5)
+               if(.not. btest(active_mg(myid,ilevel)%f(icell_mg(i),1),0)) then
+                  do j=2,26,2
+                     ind2            = (nbors_cells(i,j)-ncoarse)/ngridmax+1
+                     jgrid_amr(j)    = nbors_cells(i,j)-ncoarse-(ind2-1)*ngridmax
+                     jgrid_mg(j)     = lookup_mg(jgrid_amr(j))
+                     cpu_nbor_amr(j) = cpu_map(father(jgrid_amr(j)))
+                     jcell_mg(j)     = jgrid_mg(j)+(ind2-1)*active_mg(cpu_nbor_amr(j),ilevel)%ngrid
+                  end do
+                  do j=11,17,2
+                     ind2            = (nbors_cells(i,j)-ncoarse)/ngridmax+1
+                     jgrid_amr(j)    = nbors_cells(i,j)-ncoarse-(ind2-1)*ngridmax
+                     jgrid_mg(j)     = lookup_mg(jgrid_amr(j))
+                     cpu_nbor_amr(j) = cpu_map(father(jgrid_amr(j)))
+                     jcell_mg(j)     = jgrid_mg(j)+(ind2-1)*active_mg(cpu_nbor_amr(j),ilevel)%ngrid
+                  end do
+                  do j=5,23,18
+                     ind2            = (nbors_cells(i,j)-ncoarse)/ngridmax+1
+                     jgrid_amr(j)    = nbors_cells(i,j)-ncoarse-(ind2-1)*ngridmax
+                     jgrid_mg(j)     = lookup_mg(jgrid_amr(j))
+                     cpu_nbor_amr(j) = cpu_map(father(jgrid_amr(j)))
+                     jcell_mg(j)     = jgrid_mg(j)+(ind2-1)*active_mg(cpu_nbor_amr(j),ilevel)%ngrid
+                  end do
 
-               nb_sum_sfi(1) = active_mg(cpu_nbor_amr(13),ilevel)%u(jcell_mg(13),5) + &
-                             & active_mg(cpu_nbor_amr(15),ilevel)%u(jcell_mg(15),5)
-               nb_sum_sfi(2) = active_mg(cpu_nbor_amr(11),ilevel)%u(jcell_mg(11),5) + &
-                             & active_mg(cpu_nbor_amr(17),ilevel)%u(jcell_mg(17),5)
-               nb_sum_sfi(3) = active_mg(cpu_nbor_amr(5 ),ilevel)%u(jcell_mg(5 ),5) + &
-                             & active_mg(cpu_nbor_amr(23),ilevel)%u(jcell_mg(23),5)
+                  nb_sum_sfi(1) = active_mg(cpu_nbor_amr(13),ilevel)%u(jcell_mg(13),5) + &
+                                & active_mg(cpu_nbor_amr(15),ilevel)%u(jcell_mg(15),5)
+                  nb_sum_sfi(2) = active_mg(cpu_nbor_amr(11),ilevel)%u(jcell_mg(11),5) + &
+                                & active_mg(cpu_nbor_amr(17),ilevel)%u(jcell_mg(17),5)
+                  nb_sum_sfi(3) = active_mg(cpu_nbor_amr(5 ),ilevel)%u(jcell_mg(5 ),5) + &
+                                & active_mg(cpu_nbor_amr(23),ilevel)%u(jcell_mg(23),5)
 
 
-               op  = nb_sum_sfi(1)+nb_sum_sfi(2)+nb_sum_sfi(3)-6.0d0*sfc &
-                 - active_mg(myid,ilevel)%u(icell_mg(i),6)*dx2
+                  op  = nb_sum_sfi(1)+nb_sum_sfi(2)+nb_sum_sfi(3)-6.0*sfc
+                  nb_sum_sfj(1) = active_mg(cpu_nbor_amr(2 ),ilevel)%u(jcell_mg(2 ),5) + &
+                                & active_mg(cpu_nbor_amr(26),ilevel)%u(jcell_mg(26),5) - &
+                                & active_mg(cpu_nbor_amr(8 ),ilevel)%u(jcell_mg(8 ),5) - &
+                                & active_mg(cpu_nbor_amr(20),ilevel)%u(jcell_mg(20),5)
+                  nb_sum_sfj(2) = active_mg(cpu_nbor_amr(4 ),ilevel)%u(jcell_mg(4 ),5) + &
+                                & active_mg(cpu_nbor_amr(24),ilevel)%u(jcell_mg(24),5) - &
+                                & active_mg(cpu_nbor_amr(6 ),ilevel)%u(jcell_mg(6 ),5) - &
+                                & active_mg(cpu_nbor_amr(22),ilevel)%u(jcell_mg(22),5)
+                  nb_sum_sfj(3) = active_mg(cpu_nbor_amr(10),ilevel)%u(jcell_mg(10),5) + &
+                                & active_mg(cpu_nbor_amr(18),ilevel)%u(jcell_mg(18),5) - &
+                                & active_mg(cpu_nbor_amr(12),ilevel)%u(jcell_mg(12),5) - &
+                                & active_mg(cpu_nbor_amr(16),ilevel)%u(jcell_mg(16),5)
+                  eta = 2.0d0/(3.0d0*dx2**2) *((nb_sum_sfi(1)-2.0*sfc)**2 +  &
+                      &                       (nb_sum_sfi(2)-2.0*sfc)**2 +  &
+                      &                       (nb_sum_sfi(3)-2.0*sfc)**2) - &
+                      & 2.0d0/(3.0d0*dx2**2) *(nb_sum_sfi(1)-2.0*sfc)*  &
+                      &                       (nb_sum_sfi(2)-2.0*sfc) - &
+                      & 2.0d0/(3.0d0*dx2**2) *(nb_sum_sfi(1)-2.0*sfc)*  &
+                      &                       (nb_sum_sfi(3)-2.0*sfc) - &
+                      & 2.0d0/(3.0d0*dx2**2) *(nb_sum_sfi(2)-2.0*sfc)*  &
+                      &                       (nb_sum_sfi(3)-2.0*sfc) + &
+                      &       0.125d0/dx2**2 *(nb_sum_sfj(1)**2 + &
+                      &                        nb_sum_sfj(2)**2 + &
+                      &                        nb_sum_sfj(3)**2)
 
-            else
-               op = 0.0d0
-            end if
+                  eta = eta+1.5d0*alpha_sf/beta_cvg*omega_m*aexp*active_mg(myid,ilevel)%u(icell_mg(i),6)
+                  eta = eta*8.0d0/3.0d0+alpha_sf**2
 
-            active_mg(myid,ilevel)%u(icell_mg(i),2) = active_mg(myid,ilevel)%u(icell_mg(i),2)+op/dx2
+                  if(eta<0.0d0) then
+                     write(*,*) 'imaginary square root!'
+                     stop
+                  end if
+                  if(alpha_sf>=0.d0) then
+                     op  = op - (0.75d0*(-alpha_sf+sqrt(eta)) - sf_src_mean)*dx2 
+                  else
+                     op  = op - (0.75d0*(-alpha_sf-sqrt(eta)) - sf_src_mean)*dx2
+                  end if
+
+               else
+                  op = 0.0d0
+               end if
+
+               active_mg(myid,ilevel)%u(icell_mg(i),2) = active_mg(myid,ilevel)%u(icell_mg(i),2)+op/dx2
+            end do
          end do
       end do
-   end do
+   else
+      ! Loop over cells
+      do ind=1,twotondim
+         iskip_mg  = (ind-1)*ngrid
+         iskip_amr = (ind-1)*ngridmax+ncoarse
+
+         ! Loop over active grids
+         do igrid_mg=1,ngrid,nvector
+            nbatch=MIN(nvector,ngrid-igrid_mg+1)
+            do i=1,nbatch
+               igrid_amr(i) = active_mg(myid,ilevel)%igrid(i+igrid_mg-1)
+               icell_amr(i) = iskip_amr+igrid_amr(i)
+               icell_mg(i)  = iskip_mg+igrid_mg+i-1
+            end do
+            call get3cubefather(icell_amr,nbors_cells,nbors_grids,nbatch,ilevel)
+            do i=1,nbatch
+               sfc = active_mg(myid,ilevel)%u(icell_mg(i),5)
+               if(.not. btest(active_mg(myid,ilevel)%f(icell_mg(i),1),0)) then
+                  do j=2,26,2
+                     ind2            = (nbors_cells(i,j)-ncoarse)/ngridmax+1
+                     jgrid_amr(j)    = nbors_cells(i,j)-ncoarse-(ind2-1)*ngridmax
+                     jgrid_mg(j)     = lookup_mg(jgrid_amr(j))
+                     cpu_nbor_amr(j) = cpu_map(father(jgrid_amr(j)))
+                     jcell_mg(j)     = jgrid_mg(j)+(ind2-1)*active_mg(cpu_nbor_amr(j),ilevel)%ngrid
+                  end do
+                  do j=11,17,2
+                     ind2            = (nbors_cells(i,j)-ncoarse)/ngridmax+1
+                     jgrid_amr(j)    = nbors_cells(i,j)-ncoarse-(ind2-1)*ngridmax
+                     jgrid_mg(j)     = lookup_mg(jgrid_amr(j))
+                     cpu_nbor_amr(j) = cpu_map(father(jgrid_amr(j)))
+                     jcell_mg(j)     = jgrid_mg(j)+(ind2-1)*active_mg(cpu_nbor_amr(j),ilevel)%ngrid
+                  end do
+                  do j=5,23,18
+                     ind2            = (nbors_cells(i,j)-ncoarse)/ngridmax+1
+                     jgrid_amr(j)    = nbors_cells(i,j)-ncoarse-(ind2-1)*ngridmax
+                     jgrid_mg(j)     = lookup_mg(jgrid_amr(j))
+                     cpu_nbor_amr(j) = cpu_map(father(jgrid_amr(j)))
+                     jcell_mg(j)     = jgrid_mg(j)+(ind2-1)*active_mg(cpu_nbor_amr(j),ilevel)%ngrid
+                  end do
+
+                  nb_sum_sfi(1) = active_mg(cpu_nbor_amr(13),ilevel)%u(jcell_mg(13),5) + &
+                                & active_mg(cpu_nbor_amr(15),ilevel)%u(jcell_mg(15),5)
+                  nb_sum_sfi(2) = active_mg(cpu_nbor_amr(11),ilevel)%u(jcell_mg(11),5) + &
+                                & active_mg(cpu_nbor_amr(17),ilevel)%u(jcell_mg(17),5)
+                  nb_sum_sfi(3) = active_mg(cpu_nbor_amr(5 ),ilevel)%u(jcell_mg(5 ),5) + &
+                                & active_mg(cpu_nbor_amr(23),ilevel)%u(jcell_mg(23),5)
+
+
+                  op  = nb_sum_sfi(1)+nb_sum_sfi(2)+nb_sum_sfi(3)-6.0d0*sfc &
+                    - active_mg(myid,ilevel)%u(icell_mg(i),6)*dx2
+
+               else
+                  op = 0.0d0
+               end if
+               active_mg(myid,ilevel)%u(icell_mg(i),2) = active_mg(myid,ilevel)%u(icell_mg(i),2)+op/dx2
+            end do
+         end do
+      end do
+   end if
 end subroutine make_physical_rhs_coarse_extradof
 
 

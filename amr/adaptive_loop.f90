@@ -18,7 +18,7 @@ subroutine adaptive_loop
   real(kind=8) :: tt1,tt2
   real(kind=4) :: real_mem,real_mem_tot
 
-  real(dp)     :: EE,Ep,varphip,varphipp   ! used if extradof2=T
+  real(dp)     :: EE                       ! used if extradof2=T
 
 #ifndef WITHOUTMPI
   tt1=MPI_WTIME(info)
@@ -71,19 +71,16 @@ subroutine adaptive_loop
      
      if(extradof2) then
         ! cv-Galileon background (analytical solution on the tracker)
-        EE       = sqrt(0.5d0*(omega_m/aexp**3+sqrt(omega_m**2/aexp**6+4.0d0*(1.0d0-omega_m))))
-        Ep       = -0.75d0*omega_m/EE/aexp**3*(1.0d0+omega_m/aexp**3/sqrt(omega_m**2/aexp**6+4.0d0*(1.0d0-omega_m)))
-        rc_cvg = EE**2*param_b3**(2d0/3d0)/((2d0*(1d0-omega_m))**(2d0/3d0)) !^2
+        EE       = dsqrt(0.5d0*(omega_m/aexp**3+dsqrt(omega_m**2/aexp**6+4.0d0*(1.0d0-omega_m))))
+        rc_cvg   = EE**2*(param_b3/(2.0d0*(1.0d0-omega_m)))**(2.0d0/3.0d0)
 
-        alpha_cvg  = 1.0d0/(2.0d0*2d0**(1d0/3d0))*param_b3**(1d0/3d0) &
-                   * 1d0/(1d0-omega_m)**(1d0/3d0) &
-                   * (sqrt(omega_m**2/aexp**6 + 4.0d0*(1.0d0-omega_m)) - omega_m/aexp**3)
+        alpha_cvg  = 0.5d0*(0.5d0*param_b3/(1.0d0-omega_m))**(1.0d0/3.0d0) &
+                   * (dsqrt(omega_m**2/aexp**6+4.0d0*(1.0d0-omega_m))-omega_m/aexp**3)
 
-        beta_cvg   = 1.0d0/(2.0d0*2d0**(1d0/3d0))*param_b3**(1d0/3d0) &
-                   * 1d0/(1d0-omega_m)**(1d0/3d0) &
-                   * (5d0*omega_m/aexp**3d0 + 3d0*omega_m**2d0/(aexp**6*sqrt(omega_m**2d0/aexp**6d0 + 4d0*(1-omega_m)))) &
+        beta_cvg   = 0.5d0*(0.5d0*param_b3/(1.0d0-omega_m))**(1.0d0/3.0d0) &
+                   * (5.0d0*omega_m/aexp**3+3.0d0*omega_m**2/aexp**6/dsqrt(omega_m**2/aexp**6+4.0d0*(1.0d0-omega_m))) &
                    + param_b3
-
+        
         write(1234,'(100e15.6)') aexp,rc_cvg,alpha_cvg,beta_cvg
      end if
 
@@ -141,10 +138,6 @@ subroutine adaptive_loop
               end do
               if(extradof4)then
                  call make_virtual_fine_dp(sf_lp(1),ilevel)
-                 !call make_virtual_fine_dp(bf_src1(1),ilevel)
-                 !call make_virtual_fine_dp(bf_src2(1),ilevel)
-                 !call make_virtual_fine_dp(bf_src3(1),ilevel)
-                 !call make_virtual_fine_dp(bf_src4(1),ilevel)
                  do idim=1,ndim
                     call make_virtual_fine_dp(cbf(1,idim),ilevel)
                  end do
@@ -192,7 +185,7 @@ subroutine adaptive_loop
                  call make_virtual_fine_dp(f(1,idim),ilevel)
               end do
            end if
-           ! Scalar field book-keeping
+           ! vector-field book-keeping
            if(extradof) then
               call make_virtual_fine_dp(sf(1),ilevel)
               call make_virtual_fine_dp(sf_src(1),ilevel)
@@ -201,10 +194,6 @@ subroutine adaptive_loop
               end do
               if(extradof4)then
                  call make_virtual_fine_dp(sf_lp(1),ilevel)
-                 !call make_virtual_fine_dp(bf_src1(1),ilevel)
-                 !call make_virtual_fine_dp(bf_src2(1),ilevel)
-                 !call make_virtual_fine_dp(bf_src3(1),ilevel)
-                 !call make_virtual_fine_dp(bf_src4(1),ilevel)
                  do idim=1,ndim
                     call make_virtual_fine_dp(cbf(1,idim),ilevel)
                  end do

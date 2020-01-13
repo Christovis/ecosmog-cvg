@@ -349,7 +349,7 @@ subroutine init_cosmo
   do ilevel=levelmin,nlevelmax_part
      dfact(ilevel)=d1a(aexp)/d1a(astart(ilevel))
      vfact(ilevel)=astart(ilevel)*fpeebl(astart(ilevel)) & ! Same scale factor as in grafic1
-          & *sqrt(omega_m/astart(ilevel)+omega_l*astart(ilevel)*astart(ilevel)+omega_k) &
+          & *dsqrt(omega_m/astart(ilevel)+omega_l*astart(ilevel)*astart(ilevel)+omega_k) &
           & /astart(ilevel)*h0
   end do
 
@@ -384,7 +384,7 @@ subroutine init_cosmo
 
   ! Scale displacement in Mpc to code velocity (v=dx/dtau)
   ! in coarse cell units per conformal time
-  vfact(1)=aexp*fpeebl(aexp)*sqrt(omega_m/aexp+omega_l*aexp*aexp+omega_k)
+  vfact(1)=aexp*fpeebl(aexp)*dsqrt(omega_m/aexp+omega_l*aexp*aexp+omega_k)
   ! This scale factor is different from vfact in grafic by h0/aexp
 
 contains
@@ -626,12 +626,12 @@ function dadtau(axp_tau,O_mat_0,O_vac_0,O_k_0)
   
   if(extradof2) then
      dadtau = 0.5D0*axp_tau**3* &
-            & (O_mat_0+sqrt(O_mat_0**2/axp_tau**6+4.0D0*(1.0D0-O_mat_0))*axp_tau**3)
+            & (O_mat_0+dsqrt(O_mat_0**2/axp_tau**6+4.0D0*(1.0D0-O_mat_0))*axp_tau**3)
   else
      dadtau = axp_tau**3*  &
             & (O_mat_0+O_vac_0*axp_tau**3+O_k_0*axp_tau)
   end if
-  dadtau = sqrt(dadtau)
+  dadtau = dsqrt(dadtau)
 
   return
 end function dadtau
@@ -643,12 +643,12 @@ function dadt(axp_t,O_mat_0,O_vac_0,O_k_0)
 
   if(extradof2) then
      dadt = (0.5D0/axp_t)* &
-          & (O_mat_0+sqrt(O_mat_0**2/axp_t**6+4.0D0*(1.0D0-O_mat_0))*axp_t**3)
+          & (O_mat_0+dsqrt(O_mat_0**2/axp_t**6+4.0D0*(1.0D0-O_mat_0))*axp_t**3)
   else
      dadt = (1.0D0/axp_t)* &
           & (O_mat_0+O_vac_0*axp_t**3+O_k_0*axp_t)
   end if 
-  dadt = sqrt(dadt)
+  dadt = dsqrt(dadt)
   
   return
 end function dadt
