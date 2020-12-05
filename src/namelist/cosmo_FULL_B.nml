@@ -1,5 +1,5 @@
 
-&RUN_PARAMS 
+&RUN_PARAMS
 cosmo=.true.
 pic=.true.
 poisson=.true.
@@ -32,10 +32,10 @@ nexpand=1
 /
 
 &EXTRADOF_PARAMS
-param_b3=0.01
+param_b3=0.01         & free model parameter \beta_3
 /
 
-&REFINE_PARAMS 
+&REFINE_PARAMS
 m_refine=8,8,8,8,8,8,8,8,8,8
 /
 
