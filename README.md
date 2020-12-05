@@ -24,3 +24,5 @@ The code has multiple gravitational solvers to choose from, for which one needs 
 | Non-linear w B   | True      | True       | False      | True       |
 
 Initial condition can be generated with [2LPTic](https://arxiv.org/abs/astro-ph/0606505).
+
+The simulation results can be analysed through [wys-ars](https://github.com/Christovis/wys-ars).
