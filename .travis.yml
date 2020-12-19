@@ -13,4 +13,4 @@ matrix:
   - env: FC=gfortran-8
   - env: FC=gfortran-9
 install:
-  - ./travis/install.sh
+  - ./make.bash
