@@ -1,6 +1,7 @@
 module extradof_commons 
   use amr_parameters
-
+  
+  ! cvG fields
   ! sf : longitudinal/chi-mode of proca field
   ! sf_src_mean : mean of momentarily solved 5th-force field, meaning sf or cbf
   !               (subroutine in multigrid_fine_commons_extradof.f90)
@@ -22,10 +23,14 @@ module extradof_commons
   real(dp),allocatable,dimension(:)   :: sf_lp
   real(dp),allocatable,dimension(:,:) :: cbf
 
-  ! These are time-dependent background functions
+  ! cvG, These are time-dependent background functions
   ! (are defined in ./amr/adaptive_loop.f90)
   real(dp) :: alpha_cvg  ! alpha function, needed for 5th force
   real(dp) :: beta_cvg   ! beta function, needed for 5th force
   real(dp) :: rc_cvg     ! cross-over function Rc^2, needed for Vainshtein radius
+
+  ! DGP, background related functions
+  real(dp) :: beta_dgp                             ! beta(a), Chr 30/03/20
+  real(dp) :: gamma_dgp                            ! Chr 30/03/20
 
 end module extradof_commons

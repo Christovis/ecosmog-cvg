@@ -159,7 +159,7 @@ subroutine multigrid_fine(ilevel,icount)
 !  if(nboundary>0) levelmin_mg=max(levelmin_mg,2)
    if(nboundary>0) levelmin_mg=max(levelmin_mg+1,2)
    levelmin_mg = max(levelmin_mg,3)
-   !levelmin_mg = levelmin  ! TODO
+   !levelmin_mg = levelmin  ! switch multigrid-solver off, TODO
 
    ! Update flag with scan flag
    call set_scan_flag_fine(ilevel)

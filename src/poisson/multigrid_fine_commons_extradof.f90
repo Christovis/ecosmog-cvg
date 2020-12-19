@@ -165,10 +165,10 @@ subroutine multigrid_fine_extradof(ilevel,icount,isf)
       call restrict_extradof_fine_reverse_extradof(ilevel,isf)
       call make_reverse_mg_dp(5,ilevel-1)
       call make_virtual_mg_dp(5,ilevel-1)
-      call make_physical_rhs_coarse_extradof(ilevel-1,isf)
       call restrict_density_fine_reverse_extradof(ilevel,isf)
       call make_reverse_mg_dp(6,ilevel-1)
       call make_virtual_mg_dp(6,ilevel-1)
+      call make_physical_rhs_coarse_extradof(ilevel-1,isf)
 
       if(ilevel>1 .and. levelmin_mg<ilevel) then
          ! Make initial guess at upper level before solve
@@ -235,17 +235,30 @@ subroutine multigrid_fine_extradof(ilevel,icount,isf)
 
       ! Converged?
       ! start of TODO: think about different convergence criteria for sf and cbf
+      !if(ilevel==levelmin) then
+      !   if(residual<1.0d-12                          .or. &
+      !      iter>=MAXITER                             .or. &
+      !      abs(residual-residual_old)<1.0d-09        .or. &
+      !      (residual<=0.33*trunc_err .and. iter>=20) .or. &
+      !      (residual>residual_old))                   exit
+      !else
+      !   if(residual<1.0d-12                          .or. &
+      !      iter>=MAXITER                             .or. &
+      !      abs(residual-residual_old)<1.0d-09        .or. &
+      !      (residual<=0.33*trunc_err .and. iter>=20)) exit
+      !end if
       if(ilevel==levelmin) then
-         if(residual<1.0d-12                          .or. &
+         if(residual<1.0d-9                           .or. &
             iter>=MAXITER                             .or. &
-            abs(residual-residual_old)<1.0d-9        .or. &
+            abs(residual-residual_old)<1.0d-10        .or. &
             (residual<=0.33*trunc_err .and. iter>=20) .or. &
-            (residual>residual_old))                   exit
+            (residual>residual_old .and. residual<=0.01*trunc_err)) exit
       else
-         if(residual<1.0d-12                          .or. &
+         if(residual<1.0d-8                           .or. &
             iter>=MAXITER                             .or. &
-            abs(residual-residual_old)<1.0d-9        .or. &
-            (residual<=0.33*trunc_err .and. iter>=20)) exit
+            abs(residual-residual_old)<1.0d-09        .or. &
+            (residual<=0.33*trunc_err .and. iter>=20) .or. &
+            (residual>residual_old .and. residual<=0.01*trunc_err)) exit
       end if
 
 !     if(residual<=residual_old) then
@@ -386,10 +399,10 @@ recursive subroutine recursive_multigrid_coarse_extradof(ifinelevel,isf,safe)
       call restrict_extradof_coarse_reverse_extradof(ifinelevel)
       call make_reverse_mg_dp(5,ifinelevel-1)
       call make_virtual_mg_dp(5,ifinelevel-1)
-      call make_physical_rhs_coarse_extradof(ifinelevel-1,isf)
       call restrict_density_coarse_reverse_extradof (ifinelevel)
       call make_reverse_mg_dp(6,ifinelevel-1)
       call make_virtual_mg_dp(6,ifinelevel-1)
+      call make_physical_rhs_coarse_extradof(ifinelevel-1,isf)
 
       ! Initial guess from upper level before solve
       do icpu=1,ncpu
@@ -660,11 +673,11 @@ subroutine gauss_seidel_sf_src_mean_extradof(ilevel,isf)
 
    test_srcbar=test_srcbar/dble((2**levelmin)**3)
 
-   if(verbose) write(*,*) 'The average srouce is',test_srcbar,isf
-
-   !sf_src_mean       = test_srcbar
-   !sf_src_mean2(isf) = test_srcbar
-   sf_src_mean       = 0.0d0
-   sf_src_mean2(isf) = 0.0d0
+   if(verbose) write(*,*) 'The average source is',test_srcbar,isf
+   ! TODO
+   sf_src_mean       = test_srcbar
+   sf_src_mean2(isf) = test_srcbar
+   !sf_src_mean       = 0.0d0
+   !sf_src_mean2(isf) = 0.0d0
 
 end subroutine gauss_seidel_sf_src_mean_extradof

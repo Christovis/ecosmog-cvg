@@ -604,7 +604,7 @@ subroutine make_initial_extradof(ilevel,icount)
            ! other arrays for gradients initialised to zero
            do idim=1,ndim
               do i=1,ngrid
-                 sf_grad (ind_cell(i),idim) = 0.0d0
+                 sf_grad(ind_cell(i),idim) = 0.0d0
                  if(extradof4) then
                     cbf(ind_cell(i),idim) = 0.0d0
                  endif

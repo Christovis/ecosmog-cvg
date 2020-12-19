@@ -1,0 +1,244 @@
+RAMSES version 3.10
+
+Copyright Romain Teyssier and CEA from 1997 to 2007
+
+Copyright Romain Teyssier and the University of Zurich from 2008 to 2013
+
+romain.teyssier@gmail.com
+
+This software is  an open source computer program whose  purpose is to
+perform  simulations of  self-gravitating  fluids  with Adaptive  Mesh
+Refinement on massively parallel computers. It is based on the Fortran
+90 language and the MPI communication library.
+
+When using the RAMSES code, please cite the following paper for proper
+credit:
+
+Teyssier, R., "Cosmological hydrodynamics with adaptive mesh refinement. 
+A new high resolution code called RAMSES", 2002, A&A, 385, 337
+
+The code is available for download and documentation in
+https://bitbucket.org/rteyssie/ramses
+
+You can quickly test your installation by executing:
+$ cd bin
+$ make
+$ cd ..
+$ bin/ramses1d namelist/tube1d.nml
+
+===========================
+Added features for ECOSMOG:
+===========================
+
+-------------
+update on 30/01/2015
+
+In previous simulations the code was mostly compiled with the options
+-DTSC and -DOLDINTERP. The new interpolation scheme from coarse to fine
+levels (adopted in the latest versions of the RAMSES code) is turned 
+off if -DOLDINTERP is used; otherwise the new interpolatin scheme is
+turned on. This scheme uses CIC and so is not consistent with -DTSC.
+Therefore, -DTSC and -DOLDINTERP should be used together, which was the
+practice so far.
+
+However, in light of the observation that TSC interpolation degrades
+the force resolution and can cause loss to the small scale clustering,
+it is recommended that -DTSC is turned off in Makefile, and along with 
+this -DOLDINTERP should also be turned off. Then there are two choices:
+
+In v5a, the new interpolation scheme is used for the grav. potential
+phi, as well as for the scalar field sf. This scheme also makes use of
+the time evolution information (in case adaptive time steps are used)
+to interpolate phi/sf from coarser levels to finer levels.
+
+In v5b, the new interpolation scheme is used for the grav. potential
+pot only, and not for the scalar field sf. So basically, for the sf,
+to get its fine level values, the code uses its value at the centre 
+of a coarse cell, and its gradient in the coarse cell.
+
+No test has been done as which scheme is better. I do not believe
+that they will differ significantly.
+
+Search 30-01-15 for more details of the changes.
+
+
+-------------
+v4 (update on 18/09/2014)
+
+A bug found in the following segment of subroutine amr_step:
+
+  if(levelmin.lt.nlevelmax .and..not. static)then
+     if(extradof) then
+        if(ilevel.eq.levelmin .and. aexp.le.2.0) then
+           do icell=1,ncoarse+twotondim*ngridmax
+              sf(icell) = 0.0d0
+           end do
+        end if
+     end if
+     ...
+  end if
+
+If one wants to do simulations with no refinements by setting levelmax equal
+to levelmin in the namelist, then the first if statement means that initial
+guess will not be set properly, leading to non-convergence of the scalar field
+solver. This should not affect simulations with refinements.
+
+Search "18-09-2014" in amr_step.f90 to see how the bug is fixed.
+
+-------------
+
+For users who have been used to LCDM simulations, please bear in mind
+that the most important feature of modified gravity simulations is that
+they are much slower, typically taking a few times to more than 10 times
+longer than a LCDM simulation with the same technical specifications. 
+
+The memory requirement is also larger than corresponding LCDM simulations,
+because more variables need to be specified. The user is recommended to
+first read Romain Teyssier's RAMSES guide to find how much memory a LCDM
+simulation requires, and multiply the numbers by a factor of 1.4-1.6 (the 
+number is larger if higher resolution is needed). 
+
+This is a generic thing, thanks to the high nonlinearity in modified 
+gravity field equations.
+
+ECOSMOG has a few user-determined ways to speed up the simulations a bit,
+as will be mentioned below. The users should use them with due attention,
+and contact Baojiu (baojiu.li@durham.ac.uk) in case of doubt.
+
+-------------
+
+This version supports different variants of cubic Galileon simulation, 
+for which one needs to set corresponding values for the three variables
+extradof, extradof2 and extradof3 in namelist/cosmo.nml (default values
+for these are all .false.) using the following rule:
+
+MODEL      extradof       extradof2       extradof3
+
+LCDM        false           false           false
+QCDM        false           true            false
+LINE        false           true            true
+FULL        true            true            false
+
+For definitions of the different models see arXiv:1306.3219.
+
+-------------
+
+About the background expansion history of the model:
+
+In this version the user needs to prepare a file containing background
+evolution information for the code to read. The file should have the name
+'Beta.txt' and an empty file with such a name is currently put in the folder
+to let the user know where it should be. See below about what Beta.txt should
+contain.
+
+Of course, the user can indeed use the tracker solution of the cubic Galileon 
+model, which can be obtained analytically (see Sect.IIC of 1308.3491). This
+needs only to be done in the file amr/adaptive_loops.f90, and it is easy to
+spot where to do the modifications. If unsure, please contact Baojiu for 
+help.
+
+
+-------------
+
+IMPORTANT:
+
+The Galileon parameters:
+
+Much of the parameter information is already contained in the 'Beta.txt' file
+mentioned above. However, in namelist/cosmo.nml the user will find two more
+parameters: param_w and param_c3.
+
+Please DO NOT change param_w, as otherwise the code will not converge.
+
+param_c3 is the c3 coeifficient in front of the cubic Galileon Lagrangian density.
+In cubic Galileon, there are three model parameters: c2 (the coefficient in front
+of the scalar field kinetic term), c3 and the initial value of \dot{Galileon field}.
+They are not all independent. Indeed, in the tracker solution, in the case of
+cubic Galleon, the three parameters c2, c3 and \xi (see Eq.(18) of 1308.3491 for
+definition) reduce to zero, by using the flatness (Eq.(20) of 1308.3491),
+the Galileon equation of motion, and the scaling (see Sect.IIIB of 1302.6241)
+relation. More specifically, the scaling relation allows the user to fix \xi to 
+ANY value; once this is fixed, Eq.(20) and Eq.(18) determine c2 and c3 (one can 
+of course also fix c3 and let Eqs.(18,20) determine the other two).
+
+As a result, the user does need to specify one of the three parameters in the code, 
+and the default code specifies c3 to be 10.0. There is no need to change this parameter
+in namelist/cosmo.nml, as long as the user is careful enough to us3 c3=10 and Eqs.(18,20)
+to determine c2 and \xi, and therefore the beta functions defined in 1306.3219, or rather
+the beta1 and beta2 variables in amr/adaptive_loops.f90. This 
+is the case if the user decides to use the tracker solution (this is highly 
+recommended because the tracker solution really simplifies things a lot).
+
+If the user still decides to read background quantities from Beta.txt, then he/she
+needs to make sure that the quantities in this file are calculated using the value of c3
+specified in namelist/cosmo.nml. He should check how Beta.txt is read in amr/adaptive_loops.f90,
+try to have a 'Beta.txt' file which contains the right values to let the code 
+obtain the right values of beta1 and beta2 in amr/adaptive_loops.f90 (beta1 and 
+beta2 are the beta1 and beta2 in Eq.(13) of 1306.3219).
+
+For any questions please contact Baojiu.
+
+-------------
+
+This version supports different density/force assignment schemes:
+
+For TSC interpolation add option -DTSC in bin/Makefile;
+
+For CIC interpolation remove this.
+
+This can cause slight differences in the simulation results. Note that
+default RAMSES v3.10 uses CIC, but TSC makes density field smoother and
+can be helpful in solving the nonlinear extradof equation. TSC is used 
+in default ECOSMOG, and the user is recommended to not change this.
+
+-------------
+
+This version also supports different schemes to interpolate potential 
+and the scalar field:
+
+For old interpolation add option -DOLDINTERP in bin/Makefile;
+
+For new interpolation remove this.
+
+This can cause slight differences in the simulation results. Note that
+default RAMSES v3.10 uses a new interpolation scheme, while v3.07 and 
+earlier versions use the old interpolation scheme. The old scheme uses
+only the parent cell information to compute the son-cell potential and
+scalar field, while the new scheme uses info from neighbouring parent 
+cells as well. Default ECOSMOG code uses the old scheme, which requires
+less memory. This user is recommended to not change this.
+
+-------------
+
+Possible ways to speed up the code a bit:
+
+(1) by tuning the convergence critierion for the modified gravity equation solver
+    (details can be found in Sect. VB of 1110.1379). This is done in the
+    subroutine subroutine multigrid_fine_extradof in the file 
+    poisson/multigrid_fine_commons_extradof.f90. Search for "CONVERGENCE CRITIERION"
+    to locate where to make the tuning. The change of convergence criterion can
+    slight affect the result, but as long as the convergence criterion is chosen
+    to be that the residual smaller than ~0.1 times the truncation error, this
+    is not controllable. The error is mainly because one is solving a discrete
+    version of a continuous equations, and the discretisation itself causes sources
+    of error in the equation.
+
+    The numbers used in the default code is a guidance, which I use in my simulations.
+
+(2) by tuning the refinement criterion for the AMR in namelist/cosmo.nml. Search for
+    "m_refine" for this. This gives, for each level of the AMR grid, the number of 
+    particles in a cell, beyond which that cell is refined into eight daughter cells.
+    Clearly, the smaller these numbers are for each level, the more refined cells the
+    code would create and the slower the simulation would become. What numbers to
+    choose should be based on the expectation from the simulation. As a general guide:
+
+    (2.1) If the user intends to study power spectrum etc., then it should be sufficient
+          to set these numbres to 8,8,8,8,8,8,8,...
+
+    (2.2) For halo properties, it is recommended to set them to 3,3,3,3,3,3,3,... or
+          4,4,4,4,4,4,4,4..., or 3,4,4,4,4,4,4,4... (I use the last in my simulations).
+
+
+-------------
+
+BEAR IN MIND: this version has NOT been checked for hydro simulations.

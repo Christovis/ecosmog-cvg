@@ -62,7 +62,8 @@ subroutine cmp_residual_mg_fine_extradof(ilevel,isf)
    dx2 = dx*dx
 
    ! parameter from second-order alg. Eq. of \nabla^2\chi
-   alpha_sf = beta_cvg*aexp**4/rc_cvg
+   !alpha_sf = beta_cvg*aexp**4/rc_cvg
+   alpha_sf = 3.0D0*gamma_dgp*aexp**4  ! Chr 30/03/20
 
    ngrid=active(ilevel)%ngrid
 
@@ -106,12 +107,16 @@ subroutine cmp_residual_mg_fine_extradof(ilevel,isf)
                         &     0.125d0/dx2**2*nb_sum_sfij(3)*       nb_sum_sfij(3)
 
                   ! derived form Eq.(69)
-                  eta = eta+1.5d0*(alpha_sf/beta_cvg)*omega_m*aexp*(rho(icell_amr(i))-rho_tot)
-                  eta = alpha_sf**2+8.0d0/3.0d0*eta
+                  !eta = eta+1.5d0*(alpha_sf/beta_cvg)*omega_m*aexp*(rho(icell_amr(i))-rho_tot)
+                  !eta = alpha_sf**2 + 8.0d0/3.0d0*eta
+                  ! Chr 30/03/20
+                  eta = eta + alpha_sf/beta_dgp*omega_m*aexp*(rho(icell_amr(i))-rho_tot)
+                  eta = alpha_sf**2 + 8.0D0/3.0D0*eta
 
                   if(eta<0.0d0) then
-                     write(*,*) 'In cmp_residual_mg_fine_extradof: imaginary square root!',eta
-                     stop
+                     !write(*,*) 'In cmp_residual_mg_fine_extradof: imaginary square root!',eta
+                     !stop
+                     eta = 1.0d-9
                   end if
 
                   if (eta.eq.0.0d0) then
@@ -122,12 +127,12 @@ subroutine cmp_residual_mg_fine_extradof(ilevel,isf)
 
                   if(alpha_sf>=0.0d0) then
                      ! derived form Eq.(69)
-                     !op = op-(0.75d0*(-alpha_sf+dsqrt(eta))-sf_src_mean)*dx2
-                     op = op - 1.5d0*omega_m/beta_cvg*aexp*(rho(icell_amr(i))-rho_tot)*dx2
+                     op = op-(0.75d0*(-alpha_sf+dsqrt(eta))-sf_src_mean)*dx2
+                     !op = op - 1.5d0*omega_m/beta_cvg*aexp*(rho(icell_amr(i))-rho_tot)*dx2
                   else
                      ! derived form Eq.(69)
-                     !op = op-(0.75d0*(-alpha_sf-dsqrt(eta))-sf_src_mean)*dx2
-                     op = op - 1.5d0*omega_m/beta_cvg*aexp*(rho(icell_amr(i))-rho_tot)*dx2
+                     op = op-(0.75d0*(-alpha_sf-dsqrt(eta))-sf_src_mean)*dx2
+                     !op = op - 1.5d0*omega_m/beta_cvg*aexp*(rho(icell_amr(i))-rho_tot)*dx2
                   end if
 
                   f(icell_amr(i),1) = -op/dx2
@@ -365,7 +370,7 @@ subroutine gauss_seidel_mg_fine_extradof(ilevel,isf,redstep)
    logical, intent(in) :: redstep
 
    integer, dimension(1:3,1:2,1:8) :: iii,jjj
-   integer, dimension(1:3,1:8)     :: ired,iblack
+   integer, dimension(1:3,1:4)     :: ired,iblack
 
    real(dp) :: dx,dx2,dx3,alpha_sf
    integer  :: ngrid
@@ -399,20 +404,21 @@ subroutine gauss_seidel_mg_fine_extradof(ilevel,isf,redstep)
    dx3 = dx2*dx
 
    ! parameter from second-order alg. Eq. of \nabla^2\chi
-   alpha_sf = beta_cvg*aexp**4/rc_cvg
+   !alpha_sf = beta_cvg*aexp**4/rc_cvg
+   alpha_sf = 3.0D0*gamma_dgp*aexp**4  ! Chr 30/03/20
 
-   ired  (1,1:8)=(/1,0,0,0,0,0,0,0/)
-   iblack(1,1:8)=(/2,0,0,0,0,0,0,0/)
-   ired  (2,1:8)=(/1,4,0,0,0,0,0,0/)
-   iblack(2,1:8)=(/2,3,0,0,0,0,0,0/)
-   ired  (3,1:8)=(/1,4,6,7,2,3,5,8/)
-   iblack(3,1:8)=(/1,2,3,4,5,6,7,8/)
+   ired  (1,1:4)=(/1,0,0,0/)
+   iblack(1,1:4)=(/2,0,0,0/)
+   ired  (2,1:4)=(/1,4,0,0/)
+   iblack(2,1:4)=(/2,3,0,0/)
+   ired  (3,1:4)=(/1,4,6,7/)
+   iblack(3,1:4)=(/2,3,5,8/)
 
    ngrid=active(ilevel)%ngrid ! How many active grid at level #ilevel on myid
 
    if(isf.eq.1) then
       ! chi-term; Loop over cells, with red/black ordering
-      do ind0=1,twotondim      ! Only half of the cells for a red or black sweep
+      do ind0=1,twotondim/2      ! Only half of the cells for a red or black sweep
          if(redstep) then
             ind = ired  (ndim,ind0)
          else
@@ -459,40 +465,33 @@ subroutine gauss_seidel_mg_fine_extradof(ilevel,isf,redstep)
                         &     0.125d0/dx2**2*nb_sum_sfij(3)*       nb_sum_sfij(3)
 
                   ! derived form Eq.(69)
-                  eta = eta+1.5d0*(alpha_sf/beta_cvg)*omega_m*aexp*(rho(icell_amr(i))-rho_tot)
-                  eta = alpha_sf**2+8.0d0/3.0d0*eta
-
-                  !ttngrid = active(ilevel)%ngrid
-                  !do ttind=1,twotondim  ! Loop over cells
-                  !   ttiskip = ncoarse + (ttind-1)*ngridmax
-                  !   iz = (ttind-1)/4
-                  !   iy = (ttind-1-4*iz)/2
-                  !   ix = ttind-1-4*iz-2*iy
-                  !   dx=0.5d0**ilevel
-                  !   if(ndim>0) xc(ttind,1) = (dble(ix)-0.5d0)*dx
-                  !   if(ndim>1) xc(ttind,2) = (dble(iy)-0.5d0)*dx
-                  !   if(ndim>2) xc(ttind,3) = (dble(iz)-0.5d0)*dx
-                  !   
-                  !   do tti=1,ttngrid  ! Loop over active grids
-                  !      ttigrid_amr = active(ilevel)%igrid(tti)
-                  !      tticell_amr = ttigrid_amr + ttiskip
-                  !      do idim=1,ndim    ! BH_test
-                  !         if (idim.eq.1)  xs = xg(ttigrid_amr,idim) + xc(ttind,idim)
-                  !         if (idim.eq.2)  ys = xg(ttigrid_amr,idim) + xc(ttind,idim)
-                  !         if (idim.eq.3)  zs = xg(ttigrid_amr,idim) + xc(ttind,idim)
-                  !      end do            ! BH_test
-                  !      if(zs>0.5D0 .and. zs<0.5D0+1.0D0/128.0D0 .and. &
-                  !         ys>0.5D0 .and. ys<0.5D0+1.0D0/128.0D0 .and. &
-                  !         xs>0.5D0 .and. xs<0.5D0+1.0D0/128.0D0) then
-                  !         write(*,'(A,8(F16.10,2x))') 'finefine ', aexp,xs,ys,zs,alpha_sf,rc_cvg,beta_cvg,eta
-                  !      end if
-                  !   end do ! Loop over grids
-                  !end do ! Loop over cells
+                  !eta = eta + 1.5d0*(alpha_sf/beta_cvg)*omega_m*aexp*(rho(icell_amr(i))-rho_tot)
+                  !eta = alpha_sf**2 + 8.0d0/3.0d0*eta
+                  ! Chr 30/03/20
+                  eta = eta + alpha_sf/beta_dgp*omega_m*aexp*(rho(icell_amr(i))-rho_tot)
+                  eta = alpha_sf**2 + 8.0d0/3.0d0*eta
                   
+                  !!if(verbose) then
+                  !iz = (ind-1)/4
+                  !iy = (ind-1-4*iz)/2
+                  !ix = ind-1-4*iz-2*iy
+                  !if(ndim>0) xc(ind,1) = (dble(ix)-0.5d0)*dx
+                  !if(ndim>1) xc(ind,2) = (dble(iy)-0.5d0)*dx
+                  !if(ndim>2) xc(ind,3) = (dble(iz)-0.5d0)*dx           
+                  !if(idim.eq.1) xs = xg(ttigrid_amr,idim) + xc(ttind,idim)
+                  !if(idim.eq.2) ys = xg(ttigrid_amr,idim) + xc(ttind,idim)
+                  !if(idim.eq.3) zs = xg(ttigrid_amr,idim) + xc(ttind,idim)
+                  !if(zs>0.5D0 .and. zs<0.5D0+1.0D0/256.0D0 .and. &
+                  !      ys>0.5D0 .and. ys<0.5D0+1.0D0/256.0D0 .and. &
+                  !      xs>0.5D0 .and. xs<0.5D0+1.0D0/256.0D0) then
+                  !      write(*,'(A,10(F16.12,2x))') 'finefine ', aexp,xs,ys,zs,nb_sum_sfi(1),nb_sum_sfi(2)-2.0d0*sfc,sfc,eta,1.5d0*(alpha_sf/beta_cvg)*omega_m*aexp*(rho(icell_amr(i))-rho_tot),alpha_sf**2
+                  !end if
+                  !!end if
 
                   if(eta<0.0d0) then
-                     write(*,*) 'In gauss_seidel_mg_fine_extradof: imaginary square root!',eta
-                     stop
+                     !write(*,*) 'In gauss_seidel_mg_fine_extradof: imaginary square root!',eta
+                     !stop
+                     eta = 1.0d-9
                   end if
 
                   if(eta.eq.0.0d0) then
@@ -500,21 +499,23 @@ subroutine gauss_seidel_mg_fine_extradof(ilevel,isf,redstep)
                   end if
 
                   dop = -6.0d0
-                  op = nb_sum_sfi(1)+nb_sum_sfi(2)+nb_sum_sfi(3)-6.0d0*sfc
+                  op = nb_sum_sfi(1) + nb_sum_sfi(2) + nb_sum_sfi(3) - 6.0d0*sfc
 
                   if(alpha_sf>=0.0d0) then
                      ! derived form Eq.(69)
-                     op = op-(0.75d0*(-alpha_sf+dsqrt(eta))-sf_src_mean)*dx2
-                     !op = op - 1.5d0*omega_m/beta_cvg*aexp*(rho(icell_amr(i))-rho_tot)*dx2
-                     sf    (icell_amr(i)) = sf(icell_amr(i))-op/dop
                      sf_src(icell_amr(i)) = 0.75d0*(-alpha_sf+dsqrt(eta))
+                     op = op - (0.75d0*(-alpha_sf+dsqrt(eta))-sf_src_mean)*dx2
+                     sf(icell_amr(i)) = sf(icell_amr(i))-op/dop
+                     ! linear theory for debugging
+                     !op = op - 1.5d0*omega_m/beta_cvg*aexp*(rho(icell_amr(i))-rho_tot)*dx2
                      !sf_src(icell_amr(i)) = 1.5d0*omega_m/beta_cvg*aexp*(rho(icell_amr(i))-rho_tot)*dx2
                   else
                      ! derived form Eq.(69)
-                     op = op-(0.75d0*(-alpha_sf-dsqrt(eta))-sf_src_mean)*dx2
-                     !op = op - 1.5d0*omega_m/beta_cvg*aexp*(rho(icell_amr(i))-rho_tot)*dx2
-                     sf    (icell_amr(i)) = sf(icell_amr(i))-op/dop
                      sf_src(icell_amr(i)) = 0.75d0*(-alpha_sf-dsqrt(eta))
+                     op = op - (0.75d0*(-alpha_sf-dsqrt(eta))-sf_src_mean)*dx2
+                     sf(icell_amr(i)) = sf(icell_amr(i))-op/dop
+                     ! linear theory for debugging
+                     !op = op - 1.5d0*omega_m/beta_cvg*aexp*(rho(icell_amr(i))-rho_tot)*dx2
                      !sf_src(icell_amr(i)) = 1.5d0*omega_m/beta_cvg*aexp*(rho(icell_amr(i))-rho_tot)*dx2
                   end if
                end if
@@ -621,10 +622,10 @@ subroutine gauss_seidel_mg_fine_extradof(ilevel,isf,redstep)
 
                   sf_src(icell_amr(i)) = param_b3*(bf_src1+bf_src2+bf_src3+bf_src4)/dx**5
                   ! op = lhs - rhs Eq.(59)
-                  op  = nb_sum_bi(1)+nb_sum_bi(2)+nb_sum_bi(3)-6.0d0*sfc
-                  op  = op-(sf_src(icell_amr(i))-sf_src_mean)*dx2
+                  op  = nb_sum_bi(1) + nb_sum_bi(2) + nb_sum_bi(3) - 6.0d0*sfc
+                  op  = op - (sf_src(icell_amr(i))-sf_src_mean)*dx2
                   dop = -6.0d0
-                  cbf(icell_amr(i),isf-1) = cbf(icell_amr(i),isf-1)-op/dop
+                  cbf(icell_amr(i),isf-1) = cbf(icell_amr(i),isf-1) - op/dop
                end if
             end do
          end do

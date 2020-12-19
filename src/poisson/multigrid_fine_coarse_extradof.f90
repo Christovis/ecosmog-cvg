@@ -48,9 +48,11 @@ subroutine cmp_residual_mg_coarse_extradof(ilevel,isf)
    integer,  dimension(1:nvector,1:twotondim), save   :: nbors_grids
    integer  :: nbatch,i,j,ind2
    integer,  dimension(1:threetondim) :: jgrid_amr,jgrid_mg,jcell_mg,cpu_nbor_amr
-
-   alpha_sf = beta_cvg*aexp**4/rc_cvg
-   dx2 = (0.5d0**ilevel)**2.0
+   
+   ! Set constants
+   !alpha_sf = beta_cvg*aexp**4/rc_cvg
+   alpha_sf = 3.0D0*gamma_dgp*aexp**4  ! Chr 30/03/20
+   dx2    = (0.5d0**ilevel)**2
 
    ngrid=active_mg(myid,ilevel)%ngrid
 
@@ -114,34 +116,38 @@ subroutine cmp_residual_mg_coarse_extradof(ilevel,isf)
                                 & active_mg(cpu_nbor_amr(18),ilevel)%u(jcell_mg(18),1) - &
                                 & active_mg(cpu_nbor_amr(12),ilevel)%u(jcell_mg(12),1) - &
                                 & active_mg(cpu_nbor_amr(16),ilevel)%u(jcell_mg(16),1)
-                  eta = 2.0d0/(3.0d0*dx2**2) *((nb_sum_sfi(1)-2.0*sfc)**2 +  &
-                      &                       (nb_sum_sfi(2)-2.0*sfc)**2 +  &
-                      &                       (nb_sum_sfi(3)-2.0*sfc)**2) - &
-                      & 2.0d0/(3.0d0*dx2**2) *(nb_sum_sfi(1)-2.0*sfc)*  &
-                      &                       (nb_sum_sfi(2)-2.0*sfc) - &
-                      & 2.0d0/(3.0d0*dx2**2) *(nb_sum_sfi(1)-2.0*sfc)*  &
-                      &                       (nb_sum_sfi(3)-2.0*sfc) - &
-                      & 2.0d0/(3.0d0*dx2**2) *(nb_sum_sfi(2)-2.0*sfc)*  &
-                      &                       (nb_sum_sfi(3)-2.0*sfc) + &
+                  eta = 2.0d0/(3.0d0*dx2**2) *((nb_sum_sfi(1)-2.0d0*sfc)**2 +  &
+                      &                       (nb_sum_sfi(2)-2.0d0*sfc)**2 +  &
+                      &                       (nb_sum_sfi(3)-2.0d0*sfc)**2) - &
+                      & 2.0d0/(3.0d0*dx2**2) *(nb_sum_sfi(1)-2.0d0*sfc)*  &
+                      &                       (nb_sum_sfi(2)-2.0d0*sfc) - &
+                      & 2.0d0/(3.0d0*dx2**2) *(nb_sum_sfi(1)-2.0d0*sfc)*  &
+                      &                       (nb_sum_sfi(3)-2.0d0*sfc) - &
+                      & 2.0d0/(3.0d0*dx2**2) *(nb_sum_sfi(2)-2.0d0*sfc)*  &
+                      &                       (nb_sum_sfi(3)-2.0d0*sfc) + &
                       &       0.125d0/dx2**2 *(nb_sum_sfj(1)**2 + &
                       &                        nb_sum_sfj(2)**2 + &
                       &                        nb_sum_sfj(3)**2)
 
-                  eta = eta+1.5d0*alpha_sf/beta_cvg*omega_m*aexp*active_mg(myid,ilevel)%u(icell_mg(i),6)
-                  eta = eta*8.0d0/3.0d0 + alpha_sf**2
+                  !eta = eta+1.5d0*alpha_sf/beta_cvg*omega_m*aexp*active_mg(myid,ilevel)%u(icell_mg(i),6)
+                  !eta = alpha_sf**2 + eta*8.0d0/3.0d0
+                  ! Chr 30/03/20
+                  eta = eta + alpha_sf/beta_dgp*omega_m*aexp*active_mg(myid,ilevel)%u(icell_mg(i),6)
+                  eta = alpha_sf**2+8.0d0/3.0d0*eta
 
                   if(eta<0.0d0) then
-                     write(*,*) 'imaginary square root!'
-                     stop
+                     !write(*,*) 'imaginary square root!'
+                     !stop
+                     eta = 1.0d-9
                   end if
                   if (eta.eq.0.0d0) then
                      eta = 1.0d-9
                   end if
                   if(alpha_sf>=0.d0) then
-                     op  = op - (0.75d0*(-alpha_sf+sqrt(eta)) - sf_src_mean)*dx2 - &
+                     op  = op - (0.75d0*(-alpha_sf+dsqrt(eta)) - sf_src_mean)*dx2 - &
                          & active_mg(myid,ilevel)%u(icell_mg(i),2)*dx2
                   else
-                     op  = op - (0.75d0*(-alpha_sf-sqrt(eta)) - sf_src_mean)*dx2 - &
+                     op  = op - (0.75d0*(-alpha_sf-dsqrt(eta)) - sf_src_mean)*dx2 - &
                          & active_mg(myid,ilevel)%u(icell_mg(i),2)*dx2
                   end if
 
@@ -322,8 +328,9 @@ subroutine gauss_seidel_mg_coarse_extradof(ilevel,isf,safe,redstep)
    integer  :: nbatch,i,j,ind2
    integer,  dimension(1:threetondim) :: jgrid_amr,jgrid_mg,jcell_mg,cpu_nbor_amr
 
-   alpha_sf = beta_cvg*aexp**4/rc_cvg
    ! Set constants
+   !alpha_sf = beta_cvg*aexp**4/rc_cvg
+   alpha_sf = 3.0D0*gamma_dgp*aexp**4  ! Chr 30/03/20
    dx2    = (0.5d0**ilevel)**2
 
    ired  (1,1:4)=(/1,0,0,0/)
@@ -403,35 +410,39 @@ subroutine gauss_seidel_mg_coarse_extradof(ilevel,isf,safe,redstep)
                                 & active_mg(cpu_nbor_amr(18),ilevel)%u(jcell_mg(18),1) - &
                                 & active_mg(cpu_nbor_amr(12),ilevel)%u(jcell_mg(12),1) - &
                                 & active_mg(cpu_nbor_amr(16),ilevel)%u(jcell_mg(16),1)
-                  eta = 2.0d0/(3.0d0*dx2**2) *((nb_sum_sfi(1)-2.0*sfc)**2 +  &
-                      &                       (nb_sum_sfi(2)-2.0*sfc)**2 +  &
-                      &                       (nb_sum_sfi(3)-2.0*sfc)**2) - &
-                      & 2.0d0/(3.0d0*dx2**2) *(nb_sum_sfi(1)-2.0*sfc)*  &
-                      &                       (nb_sum_sfi(2)-2.0*sfc) - &
-                      & 2.0d0/(3.0d0*dx2**2) *(nb_sum_sfi(1)-2.0*sfc)*  &
-                      &                       (nb_sum_sfi(3)-2.0*sfc) - &
-                      & 2.0d0/(3.0d0*dx2**2) *(nb_sum_sfi(2)-2.0*sfc)*  &
-                      &                       (nb_sum_sfi(3)-2.0*sfc) + &
+                  eta = 2.0d0/(3.0d0*dx2**2) *((nb_sum_sfi(1)-2.0d0*sfc)**2 +  &
+                      &                       (nb_sum_sfi(2)-2.0d0*sfc)**2 +  &
+                      &                       (nb_sum_sfi(3)-2.0d0*sfc)**2) - &
+                      & 2.0d0/(3.0d0*dx2**2) *(nb_sum_sfi(1)-2.0d0*sfc)*  &
+                      &                       (nb_sum_sfi(2)-2.0d0*sfc) - &
+                      & 2.0d0/(3.0d0*dx2**2) *(nb_sum_sfi(1)-2.0d0*sfc)*  &
+                      &                       (nb_sum_sfi(3)-2.0d0*sfc) - &
+                      & 2.0d0/(3.0d0*dx2**2) *(nb_sum_sfi(2)-2.0d0*sfc)*  &
+                      &                       (nb_sum_sfi(3)-2.0d0*sfc) + &
                       &       0.125d0/dx2**2 *(nb_sum_sfj(1)**2 + &
                       &                        nb_sum_sfj(2)**2 + &
                       &                        nb_sum_sfj(3)**2)
 
-                  eta = eta+1.5d0*alpha_sf/beta_cvg*omega_m*aexp*active_mg(myid,ilevel)%u(icell_mg(i),6)
-                  eta = eta*8.0d0/3.0d0 + alpha_sf**2
+                  !eta = eta+1.5d0*alpha_sf/beta_cvg*omega_m*aexp*active_mg(myid,ilevel)%u(icell_mg(i),6)
+                  !eta = alpha_sf**2 + eta*8.0d0/3.0d0
+                  ! Chr 30/03/20
+                  eta = eta + alpha_sf/beta_dgp*omega_m*aexp*active_mg(myid,ilevel)%u(icell_mg(i),6)
+                  eta = alpha_sf**2 + 8.0d0/3.0d0*eta
 
                   if(eta<0.0d0) then
-                     write(*,*) 'imaginary square root!'
-                     stop
+                     !write(*,*) 'imaginary square root!'
+                     !stop
+                     eta = 1.0d-9
                   end if
                   if (eta.eq.0.0d0) then
                      eta = 1.0d-9
                   end if
                   if(alpha_sf>=0.d0) then
-                     op  = op - (0.75d0*(-alpha_sf+sqrt(eta)) - sf_src_mean)*dx2 - &
+                     op  = op - (0.75d0*(-alpha_sf+dsqrt(eta)) - sf_src_mean)*dx2 - &
                          & active_mg(myid,ilevel)%u(icell_mg(i),2)*dx2
-                     dop = -6.0
+                     dop = -6.0d0
                   else
-                     op  = op - (0.75d0*(-alpha_sf-sqrt(eta)) - sf_src_mean)*dx2 - &
+                     op  = op - (0.75d0*(-alpha_sf-dsqrt(eta)) - sf_src_mean)*dx2 - &
                          & active_mg(myid,ilevel)%u(icell_mg(i),2)*dx2
                      dop = -6.0d0
                   end if
@@ -542,7 +553,8 @@ subroutine make_physical_rhs_coarse_extradof(ilevel,isf)
    integer,  dimension(1:threetondim) :: jgrid_amr,jgrid_mg,jcell_mg,cpu_nbor_amr
 
    ! Set constants
-   alpha_sf = beta_cvg*aexp**4/rc_cvg
+   !alpha_sf = beta_cvg*aexp**4/rc_cvg
+   alpha_sf = 3.0D0*gamma_dgp*aexp**4  ! Chr 30/03/20
    dx2    = (0.5d0**ilevel)**2
 
    ngrid=active_mg(myid,ilevel)%ngrid
@@ -608,30 +620,34 @@ subroutine make_physical_rhs_coarse_extradof(ilevel,isf)
                                 & active_mg(cpu_nbor_amr(18),ilevel)%u(jcell_mg(18),5) - &
                                 & active_mg(cpu_nbor_amr(12),ilevel)%u(jcell_mg(12),5) - &
                                 & active_mg(cpu_nbor_amr(16),ilevel)%u(jcell_mg(16),5)
-                  eta = 2.0d0/(3.0d0*dx2**2) *((nb_sum_sfi(1)-2.0*sfc)**2 +  &
-                      &                       (nb_sum_sfi(2)-2.0*sfc)**2 +  &
-                      &                       (nb_sum_sfi(3)-2.0*sfc)**2) - &
-                      & 2.0d0/(3.0d0*dx2**2) *(nb_sum_sfi(1)-2.0*sfc)*  &
-                      &                       (nb_sum_sfi(2)-2.0*sfc) - &
-                      & 2.0d0/(3.0d0*dx2**2) *(nb_sum_sfi(1)-2.0*sfc)*  &
-                      &                       (nb_sum_sfi(3)-2.0*sfc) - &
-                      & 2.0d0/(3.0d0*dx2**2) *(nb_sum_sfi(2)-2.0*sfc)*  &
-                      &                       (nb_sum_sfi(3)-2.0*sfc) + &
+                  eta = 2.0d0/(3.0d0*dx2**2) *((nb_sum_sfi(1)-2.0d0*sfc)**2 +  &
+                      &                       (nb_sum_sfi(2)-2.0d0*sfc)**2 +  &
+                      &                       (nb_sum_sfi(3)-2.0d0*sfc)**2) - &
+                      & 2.0d0/(3.0d0*dx2**2) *(nb_sum_sfi(1)-2.0d0*sfc)*  &
+                      &                       (nb_sum_sfi(2)-2.0d0*sfc) - &
+                      & 2.0d0/(3.0d0*dx2**2) *(nb_sum_sfi(1)-2.0d0*sfc)*  &
+                      &                       (nb_sum_sfi(3)-2.0d0*sfc) - &
+                      & 2.0d0/(3.0d0*dx2**2) *(nb_sum_sfi(2)-2.0d0*sfc)*  &
+                      &                       (nb_sum_sfi(3)-2.0d0*sfc) + &
                       &       0.125d0/dx2**2 *(nb_sum_sfj(1)**2 + &
                       &                        nb_sum_sfj(2)**2 + &
                       &                        nb_sum_sfj(3)**2)
 
-                  eta = eta+1.5d0*alpha_sf/beta_cvg*omega_m*aexp*active_mg(myid,ilevel)%u(icell_mg(i),6)
-                  eta = eta*8.0d0/3.0d0+alpha_sf**2
+                  !eta = eta+1.5d0*alpha_sf/beta_cvg*omega_m*aexp*active_mg(myid,ilevel)%u(icell_mg(i),6)
+                  !eta = alpha_sf**2 + eta*8.0d0/3.0d0
+                  ! Chr 30/03/20
+                  eta = eta + alpha_sf/beta_dgp*omega_m*aexp*active_mg(myid,ilevel)%u(icell_mg(i),6)
+                  eta = alpha_sf**2 + 8.0d0/3.0d0*eta
 
                   if(eta<0.0d0) then
-                     write(*,*) 'imaginary square root!'
-                     stop
+                     !write(*,*) 'imaginary square root!'
+                     !stop
+                     eta = 1.0d-9
                   end if
                   if(alpha_sf>=0.d0) then
-                     op  = op - (0.75d0*(-alpha_sf+sqrt(eta)) - sf_src_mean)*dx2 
+                     op  = op - (0.75d0*(-alpha_sf+dsqrt(eta)) - sf_src_mean)*dx2 
                   else
-                     op  = op - (0.75d0*(-alpha_sf-sqrt(eta)) - sf_src_mean)*dx2
+                     op  = op - (0.75d0*(-alpha_sf-dsqrt(eta)) - sf_src_mean)*dx2
                   end if
 
                else

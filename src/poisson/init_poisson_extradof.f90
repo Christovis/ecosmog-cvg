@@ -56,10 +56,6 @@ subroutine init_poisson_extradof
      if(extradof4) then
         sf_lp=0.0d0
         cbf=0.0d0
-        !bf_src1=0.0d0
-        !bf_src2=0.0d0
-        !bf_src3=0.0d0
-        !bf_src4=0.0d0
      endif
   endif
 

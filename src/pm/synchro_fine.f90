@@ -328,9 +328,9 @@ subroutine sync(ind_grid,ind_part,ind_grid_part,ng,np,ilevel)
   do ind=1,twotondim
      do j=1,np
         if(ok(j))then
-           indp(j,ind)=ncoarse+(icell(j,ind)-1)*ngridmax+igrid(j,ind)
+           indp(j,ind) = ncoarse + (icell(j,ind)-1)*ngridmax + igrid(j,ind)
         else
-           indp(j,ind)=nbors_father_cells(ind_grid_part(j),icell(j,ind))
+           indp(j,ind) = nbors_father_cells(ind_grid_part(j),icell(j,ind))
         end if
      end do
   end do
@@ -371,16 +371,17 @@ subroutine sync(ind_grid,ind_part,ind_grid_part,ng,np,ilevel)
            ! cv-Galileon (add fifth force to the total force if appropriate)
            if(extradof .and. extradof2 .and. .not.extradof3) then
               ! full
-              f1         = f(indp(j,ind),idim) + alpha_cvg*sf_grad(indp(j,ind),idim)
+              f1         = f(indp(j,ind),idim) + 3.0D0*beta_dgp/(2.0D0*beta_cvg)*alpha_cvg*sf_grad(indp(j,ind),idim)  !Chr 30/03/20
               ff(j,idim) = ff(j,idim) + f1*vol(j,ind)
            else if(.not.extradof .and. extradof2 .and. extradof3) then
               ! linearized
               ! \nabla^2\Phi = \Omega_m*a*\rho*(1 + \alpha/\beta)
               ! \alpha/\beta is the 5th-force to Newtonian force ratio
-              ff(j,idim)=ff(j,idim)+f(indp(j,ind),idim)*(1.0d0 + alpha_cvg/beta_cvg)*vol(j,ind)
+              ff(j,idim) = ff(j,idim) &
+                         + f(indp(j,ind),idim)*(1.0d0 + alpha_cvg/beta_cvg)*vol(j,ind)
            else
               ! LambdaCDM
-              ff(j,idim)=ff(j,idim)+f(indp(j,ind),idim)*vol(j,ind)
+              ff(j,idim) = ff(j,idim) + f(indp(j,ind),idim)*vol(j,ind)
            end if
         end do
      end do
@@ -760,7 +761,7 @@ subroutine sync2(ind_grid,ind_part,ind_grid_part,ng,np,ilevel)
            ! cv-Galileon (add fifth force to the total force if appropriate)
            if(extradof .and. extradof2 .and. .not.extradof3) then
               ! full case
-              f1         = f(indp(j,ind),idim) + alpha_cvg*sf_grad(indp(j,ind),idim)
+              f1         = f(indp(j,ind),idim) + 3.0D0*beta_dgp/(2.0D0*beta_cvg)*alpha_cvg*sf_grad(indp(j,ind),idim)  !Chr 30/03/20
               ff(j,idim) = ff(j,idim) + f1*vol(j,ind)
            else if(.not.extradof .and. extradof2 .and. extradof3) then
               ! linearized case

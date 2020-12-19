@@ -1,0 +1,7 @@
+addons:
+  apt:
+    packages:
+    - gfortran
+    - libnetcdf-dev
+language: c
+script: cd ./src/bin/ && make

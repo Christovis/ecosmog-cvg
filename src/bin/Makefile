@@ -49,6 +49,7 @@ DEFINES = -DNVECTOR=$(NVECTOR) -DNDIM=$(NDIM) -DNPRE=$(NPRE) -DNVAR=$(NVAR) -DSO
 #FFLAGS = -cpp $(DEFINES) -DNOSYSTEM
 
 # --- MPI, ifort syntax, additional checks -----------
+# COSMA
 F90 = mpif90
 #FFLAGS = -O3 -g -cpp -fbacktrace -fcheck=bounds -ffree-line-length-none $(DEFINES) #-DRT #-DNOSYSTEM
 FFLAGS = -O3 -g -traceback -fpe0 -ftrapuv -cpp $(DEFINES) -DOLDINTERP -DTSC
