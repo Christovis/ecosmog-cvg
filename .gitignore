@@ -1,2 +1,9 @@
-/src/bin/*.o
-/src/bin/*.mod
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Fortran module files
+*.mod
+*.smod

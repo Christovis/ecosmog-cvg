@@ -4,4 +4,13 @@ addons:
     - gfortran
     - libnetcdf-dev
 language: c
-script: cd ./src/bin/ && make
+compiler: gcc
+matrix:
+  include:
+  - env: FC=gfortran-4.9
+  - env: FC=gfortran-6
+  - env: FC=gfortran-7
+  - env: FC=gfortran-8
+  - env: FC=gfortran-9
+install:
+  - ./travis/install.sh
