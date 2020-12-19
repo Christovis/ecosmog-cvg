@@ -18,8 +18,7 @@ The code has multiple gravitational solvers to choose from, for which one needs 
 | Non-linear w B   | True      | True       | False      | True       |
 
 ### Build/Install
-The code can run on Linux, macOS, and Windows.
-Instructions are given below.
+The code has ben tested and run on [COSMA](https://www.dur.ac.uk/icc/cosma/), which uses CentOS 7.6 with a 3.10 Linux kernel.
 
 **Prerequisites:**
 * A Fortran compiler
