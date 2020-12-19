@@ -1,5 +1,6 @@
 # ECOSMOG - cubic vector Galileon
 
+[![Build Status](https://travis-ci.com/Christovis/ecosmog-cvg.svg?branch=master)](https://travis-ci.com/Christovis/ecosmog-cvg)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![arXiv](https://img.shields.io/badge/arXiv-2007.03042%20-green.svg)](https://arxiv.org/abs/2007.03042)
 
