@@ -3,8 +3,6 @@
 [![Build Status](https://travis-ci.com/Christovis/ecosmog-cvg.svg?branch=master)](https://travis-ci.com/Christovis/ecosmog-cvg)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![arXiv](https://img.shields.io/badge/arXiv-2007.03042%20-green.svg)](https://arxiv.org/abs/2007.03042)
-[![DOI](https://zenodo.org/badge/228586933.svg)](https://zenodo.org/badge/latestdoi/228586933)
-
 
 A open-source N-body simulation code for dark-matter only cosmological structure formation for cubic vector Galileon model of the [generalised Proca theory](https://arxiv.org/abs/1402.7026) (GP) gravity theory. It is implemented in a modified version of the [ECOSMOG](https://arxiv.org/abs/1110.1379) which is based on RAMSES. It uses adaptive mesh refinement and adaptive time integration to simulate self-gravitating fluids and is massively parallelizable as it makes use of the MPI communication library.
 
@@ -43,6 +41,6 @@ $ cd ..
 $ bin/ramses1d namelist/tube1d.nml
 ```
 
-Initial condition can be generated with [2LPTic](https://arxiv.org/abs/astro-ph/0606505).
+Initial condition can be generated with [2LPTic](https://arxiv.org/abs/astro-ph/0606505) from a power spectrum generated with [CAMB](https://github.com/cmbant/CAMB).
 
-The simulation results can be analysed through [wys-ars](https://github.com/Christovis/wys-ars).
+The simulation results can be analysed through [Astrild](https://github.com/Christovis/astrild).
